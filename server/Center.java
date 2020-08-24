@@ -50,11 +50,13 @@ public class Center {
                 while (selectionKeysIterator.hasNext()) {
                     SelectionKey selectionKey = (SelectionKey) selectionKeysIterator.next();
                     selectionKeysIterator.remove();
+                    if (!selectionKey.isValid()) {
+                        continue;
+                    }
                     if (selectionKey.isAcceptable()) {
                         this.setConnectHandler(selectionKey).run();
                     } else if (selectionKey.isReadable() && !onHandling.contains(selectionKey.hashCode())) {
-                        new Thread(this.setChannelHandler(selectionKey)).start();
-                        // this.setChannelHandler(selectionKey).run();
+                        new Thread(this.handler(selectionKey)).start();
                     }
                 }
             } catch (Exception err) {
@@ -70,7 +72,6 @@ public class Center {
                 try {
                     ServerSocketChannel ServerSocketChennal = (ServerSocketChannel) selectionKey.channel();
                     SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
-                    // SocketChannel socketChannel = (SocketChannel)selectionKey.channel();
 
                     if (socketChannel.isConnectionPending()) {
                         socketChannel.finishConnect(); // padding on connection
@@ -85,7 +86,7 @@ public class Center {
         };
     }
 
-    public Runnable setChannelHandler(SelectionKey selectionKey) {
+    public Runnable handler(SelectionKey selectionKey) {
         Integer selectionKeyHashCode = selectionKey.hashCode();
         this.onHandling.add(selectionKeyHashCode);
 
@@ -99,16 +100,14 @@ public class Center {
                         out.println("[連線中斷] " + socketChannel.getRemoteAddress());
                         socketChannel.close();
 
-                        try {
-                            String key = keys.get(selectionKeyHashCode);
+                        String key = keys.get(selectionKeyHashCode);
+                        if (key != null) {
                             ArrayList<SocketChannel> keySocketChannels = keyGroups.get(key);
                             keySocketChannels.remove(socketChannel);
                             keys.remove(selectionKeyHashCode);
                             if (keySocketChannels.size() == 0) {
                                 keyGroups.remove(key);
                             }
-                        } catch (NullPointerException err) {
-                            throw new Error("非準則下之流程的傳輸");
                         }
                     }
                 } catch (Exception err) {
@@ -121,6 +120,8 @@ public class Center {
     }
 
     public int dispatch(SocketChannel socketChannel, Integer selectionKeyHashCode) throws Exception {
+        String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
+
         ByteBuffer bufferData = ByteBuffer.allocate(2048);
         int curBufferLeng = socketChannel.read(bufferData);
 
@@ -170,20 +171,20 @@ public class Center {
                     byte[] msgCtx = new byte[2048];
                     byte[] OP_MESSAGE = { Control.MESSAGE.code };
 
-                    // -head
+                    // head
                     System.arraycopy(OP_MESSAGE, 0, msgCtx, 0, OP_MESSAGE.length);
 
-                    // -info
-                    byte[] clientInfoByte = socketChannel.getRemoteAddress().toString().getBytes("UTF-8");
+                    // info
+                    byte[] clientInfoByte = clientRemoteAddress.getBytes("UTF-8");
                     System.arraycopy(clientInfoByte, 0, msgCtx, OP_MESSAGE.length, clientInfoByte.length);
 
                     byte[] OPByte_SPLIT = { Control.NOTHING.code };
 
-                    // -split
+                    // split
                     System.arraycopy(OPByte_SPLIT, 0, msgCtx, OP_MESSAGE.length + clientInfoByte.length,
                             OPByte_SPLIT.length);
 
-                    // -message
+                    // message
                     int clientMsgByteLeng = bufferData.remaining();
                     byte[] clientMsgByte = new byte[clientMsgByteLeng];
                     bufferData.get(clientMsgByte, 0, clientMsgByteLeng);
@@ -211,18 +212,9 @@ public class Center {
                     break;
 
                 case 0x0C:
-                    // bufferData.position(0);
-                    // socketChannel.write(bufferData);
-                    // bufferData.clear();
-                    // while (socketChannel.read(bufferData) > 0) {
-                    // bufferData.flip();
-                    // socketChannel.write(bufferData);
-                    // bufferData.clear();
-                    // }
-
                     key = keys.get(selectionKeyHashCode);
 
-                    // out.println("[" + new String(clientInfoByte) + "/" + key + "/傳輸檔案] ");
+                    out.println("[" + clientRemoteAddress + "/" + key + "/傳輸檔案] ");
 
                     ArrayList<SocketChannel> keySocketChannelsForFile = keyGroups.get(key);
                     Iterator<SocketChannel> keySocketChannelsForFileIterator = keySocketChannelsForFile.iterator();
@@ -255,29 +247,28 @@ public class Center {
                     // out.println("[發送對象數] " + (keySocketChannelsForFile.size() - 1));
                     break;
                 case 0x0D:
-                int REMOTE_LENG = 8;
-                byte[] remoteByte = new byte[REMOTE_LENG];
-                bufferData.position(0);
-                bufferData.get(remoteByte, 0, bufferData.remaining());
+                    int REMOTE_LENG = 8;
+                    byte[] remoteByte = new byte[REMOTE_LENG];
+                    bufferData.position(0);
+                    bufferData.get(remoteByte, 0, bufferData.remaining());
 
-                ByteBuffer remoteCtx = ByteBuffer.wrap(remoteByte);
-                
-                key = keys.get(selectionKeyHashCode);
+                    ByteBuffer remoteCtx = ByteBuffer.wrap(remoteByte);
 
-                out.println("[?/" + key + "/傳輸控制訊息] ");
+                    key = keys.get(selectionKeyHashCode);
 
-                ArrayList<SocketChannel> keySocketChannelsForRemote = keyGroups.get(key);
-                Iterator<SocketChannel> keySocketChannelsForRemoteIterator = keySocketChannelsForRemote
-                        .iterator();
-                while (keySocketChannelsForRemoteIterator.hasNext()) {
-                    SocketChannel curSocketChannel = keySocketChannelsForRemoteIterator.next();
-                    // keySocketChannelsForRemoteIterator.remove();
-                    if (curSocketChannel == socketChannel) {
-                        continue;
+                    out.println("[" + clientRemoteAddress + "/" + key + "/傳輸控制訊息] ");
+
+                    ArrayList<SocketChannel> keySocketChannelsForRemote = keyGroups.get(key);
+                    Iterator<SocketChannel> keySocketChannelsForRemoteIterator = keySocketChannelsForRemote.iterator();
+                    while (keySocketChannelsForRemoteIterator.hasNext()) {
+                        SocketChannel curSocketChannel = keySocketChannelsForRemoteIterator.next();
+                        // keySocketChannelsForRemoteIterator.remove();
+                        if (curSocketChannel == socketChannel) {
+                            continue;
+                        }
+                        curSocketChannel.write(remoteCtx);
                     }
-                    curSocketChannel.write(remoteCtx);
-                }
-                out.println("[發送對象數] " + (keySocketChannelsForRemote.size() - 1));
+                    out.println("[發送對象數] " + (keySocketChannelsForRemote.size() - 1));
                     break;
             }
         } catch (Exception err) {

@@ -66,7 +66,7 @@ public class Chat {
 
                 Set<SelectionKey> selectionKeys = this.selector.selectedKeys();
                 Iterator<SelectionKey> selectionKeysIterator = selectionKeys.iterator();
-
+                
                 while (selectionKeysIterator.hasNext()) {
                     SelectionKey selectionKey = (SelectionKey) selectionKeysIterator.next();
                     SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
@@ -76,7 +76,7 @@ public class Chat {
                         this.setConnectHandler(socketChannel);
                         new Thread(this.setInputHandler(socketChannel)).start();
                     } else if (selectionKey.isReadable()) {
-                        this.setChannelHandler(socketChannel);
+                        this.handler(socketChannel);
                     }
                 }
             } catch (Exception err) {
@@ -99,7 +99,7 @@ public class Chat {
         }
     }
 
-    public void setChannelHandler(SocketChannel socketChannel) {
+    public void handler(SocketChannel socketChannel) {
         try {
             switch (this.dispatch(socketChannel)) {
                 case -1:
