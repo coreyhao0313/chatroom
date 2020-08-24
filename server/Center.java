@@ -215,9 +215,9 @@ public class Center {
                     // socketChannel.write(bufferData);
                     // bufferData.clear();
                     // while (socketChannel.read(bufferData) > 0) {
-                    //     bufferData.flip();
-                    //     socketChannel.write(bufferData);
-                    //     bufferData.clear();
+                    // bufferData.flip();
+                    // socketChannel.write(bufferData);
+                    // bufferData.clear();
                     // }
 
                     key = keys.get(selectionKeyHashCode);
@@ -253,6 +253,31 @@ public class Center {
                         bufferData.clear();
                     }
                     // out.println("[發送對象數] " + (keySocketChannelsForFile.size() - 1));
+                    break;
+                case 0x0D:
+                int REMOTE_LENG = 8;
+                byte[] remoteByte = new byte[REMOTE_LENG];
+                bufferData.position(0);
+                bufferData.get(remoteByte, 0, bufferData.remaining());
+
+                ByteBuffer remoteCtx = ByteBuffer.wrap(remoteByte);
+                
+                key = keys.get(selectionKeyHashCode);
+
+                out.println("[?/" + key + "/傳輸控制訊息] ");
+
+                ArrayList<SocketChannel> keySocketChannelsForRemote = keyGroups.get(key);
+                Iterator<SocketChannel> keySocketChannelsForRemoteIterator = keySocketChannelsForRemote
+                        .iterator();
+                while (keySocketChannelsForRemoteIterator.hasNext()) {
+                    SocketChannel curSocketChannel = keySocketChannelsForRemoteIterator.next();
+                    // keySocketChannelsForRemoteIterator.remove();
+                    if (curSocketChannel == socketChannel) {
+                        continue;
+                    }
+                    curSocketChannel.write(remoteCtx);
+                }
+                out.println("[發送對象數] " + (keySocketChannelsForRemote.size() - 1));
                     break;
             }
         } catch (Exception err) {

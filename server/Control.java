@@ -5,7 +5,8 @@ public enum Control {
     NOTHING((byte)0x01, "-"),
     KEY((byte)0x0A, "KEY 輸入"),
     MESSAGE((byte)0x0B, "訊息輸入"),
-    FILE((byte)0x0C, "檔案流");
+    FILE((byte)0x0C, "檔案流"),
+    REMOTE((byte)0x0D, "遠端流");
 
     public final byte code;
     public final String desc;

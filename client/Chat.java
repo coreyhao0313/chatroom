@@ -38,6 +38,7 @@ public class Chat {
 
     private long downloadByteFullSize = 0;
     private long downloadByteSize = 0;
+    private Keyboard keyboard = new Keyboard();
 
     public Chat(String address, int port) {
         this.createConnection(address, port);
@@ -125,17 +126,24 @@ public class Chat {
                 while (true) {
                     try {
                         String inputText = BR.readLine();
+
                         Pattern patternFile = Pattern.compile("^/file\\s{1}(.+)");
                         Matcher matcherFile = patternFile.matcher(inputText);
-                        Pattern patternOk = Pattern.compile("^/ok");
-                        Matcher matcherOk = patternOk.matcher(inputText);
+
+                        Pattern patternRemote = Pattern.compile("^/remote\\s?(me)?");
+                        Matcher matcherRemote = patternRemote.matcher(inputText);
 
                         if (channelKey == null) {
                             sendKey(inputText, socketChannel);
                         } else if (matcherFile.matches()) {
-                            sendPartOfFile(matcherFile.group(1), socketChannel);
-                        } else if (matcherOk.matches()) {
-                            BOS.close();
+                            sendFile(matcherFile.group(1), socketChannel);
+                        } else if (matcherRemote.matches()) {
+                            if (matcherRemote.group(1) != null) {
+                                keyboard.addOutputController();
+                                out.println("[允許作為被控端]");
+                            } else {
+                                sendKeyboardHandler(socketChannel);
+                            }
                         } else {
                             sendText(inputText, socketChannel);
                         }
@@ -180,7 +188,7 @@ public class Chat {
         socketChannel.write(ByteBuffer.wrap(ctx));
     }
 
-    public void sendPartOfFile(String path, SocketChannel socketChannel) {
+    public void sendFile(String path, SocketChannel socketChannel) {
         try {
             Path filePath = Paths.get(path).normalize();
             String fileName = filePath.getFileName().toString();
@@ -237,9 +245,70 @@ public class Chat {
 
             out.println("[傳輸完成]");
         } catch (Exception err) {
-            err.printStackTrace();
-            out.println("讀檔或傳輸階段失敗");
+            out.println("[讀檔或傳輸階段失敗]");
         }
+    }
+
+    public void sendKeyboardHandler(SocketChannel socketChannel) {
+        byte[] OPByte = { Control.REMOTE.code };
+        ByteBuffer ctx = ByteBuffer.allocate(8);
+        byte[] keyBoardTypeByte = new byte[1];
+        byte[] keyboardByteLeng = new byte[1];
+
+        keyboard = new Keyboard() {
+            @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                int keyboardInt = evt.getKeyCode();
+                byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
+                this.text.setText("");
+
+                ctx.put(OPByte);
+
+                keyBoardTypeByte[0] = 1;
+                ctx.put(keyBoardTypeByte);
+
+                keyboardByteLeng[0] = (byte) keyboardByte.length;
+                ctx.put(keyboardByteLeng);
+
+                ctx.put(keyboardByte);
+
+                ctx.flip();
+                try {
+                    socketChannel.write(ctx);
+                } catch (Exception err) {
+                    out.println("[按鍵傳輸失敗]");
+                } finally {
+                    ctx.clear();
+                }
+            }
+
+            @Override
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                int keyboardInt = evt.getKeyCode();
+                byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
+                this.text.setText("");
+
+                ctx.put(OPByte);
+
+                keyBoardTypeByte[0] = 2;
+                ctx.put(keyBoardTypeByte);
+
+                keyboardByteLeng[0] = (byte) keyboardByte.length;
+                ctx.put(keyboardByteLeng);
+
+                ctx.put(keyboardByte);
+
+                ctx.flip();
+                try {
+                    socketChannel.write(ctx);
+                } catch (Exception err) {
+                    out.println("[按鍵傳輸失敗]");
+                } finally {
+                    ctx.clear();
+                }
+            }
+        };
+        keyboard.addInputListener();
     }
 
     public int dispatch(SocketChannel socketChannel) throws Exception {
@@ -359,6 +428,34 @@ public class Chat {
                         this.downloadByteFullSize = 0;
 
                         out.println("[接收完成]");
+                    }
+                    break;
+
+                case 0x0D:
+                    if (keyboard.robot == null) {
+                        out.println("[未被允許操控之傳輸]");
+                        break;
+                    }
+                    byte keyboardType = bufferData.get();
+                    byte keyboardByteLeng = bufferData.get();
+                    byte[] remoteKeyStr = new byte[keyboardByteLeng];
+
+                    bufferData.get(remoteKeyStr, 0, keyboardByteLeng);
+                    int keyCode = Integer.parseInt(new String(remoteKeyStr));
+                    out.println("[keyCode] " + keyCode);
+                    if (keyCode == 0) {
+                        break;
+                    }
+                    switch (keyboardType) {
+                        case 1:
+                            keyboard.robot.keyPress(keyCode);
+                            // out.println("按下: " + keyCode);
+                            break;
+
+                        case 2:
+                            keyboard.robot.keyRelease(keyCode);
+                            // out.println("放掉: " + keyCode);
+                            break;
                     }
                     break;
             }
