@@ -21,10 +21,13 @@ public class Keyboard extends KeyAdapter {
     public void addInputListener(){
         this.frame = new Frame("ChatRemote");
 
+        this.frame.setFocusTraversalKeysEnabled(false);
+
         this.frame.addWindowListener(new Remote());
-        this.frame.setSize(100, 100);
+        this.frame.setSize(500, 500);
 
         this.text = new TextArea();
+        this.text.setEditable(false);
         this.text.addKeyListener(this);
 
         frame.add(text);

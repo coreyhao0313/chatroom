@@ -259,6 +259,7 @@ public class Chat {
             @Override
             public void keyPressed(java.awt.event.KeyEvent evt) {
                 int keyboardInt = evt.getKeyCode();
+                evt.consume();
                 byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
                 this.text.setText("");
 
@@ -285,6 +286,7 @@ public class Chat {
             @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
                 int keyboardInt = evt.getKeyCode();
+                evt.consume();
                 byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
                 this.text.setText("");
 

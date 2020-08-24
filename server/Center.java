@@ -214,7 +214,7 @@ public class Center {
                 case 0x0C:
                     key = keys.get(selectionKeyHashCode);
 
-                    out.println("[" + clientRemoteAddress + "/" + key + "/傳輸檔案] ");
+                    // out.println("[" + clientRemoteAddress + "/" + key + "/傳輸檔案] ");
 
                     ArrayList<SocketChannel> keySocketChannelsForFile = keyGroups.get(key);
                     Iterator<SocketChannel> keySocketChannelsForFileIterator = keySocketChannelsForFile.iterator();
@@ -247,28 +247,41 @@ public class Center {
                     // out.println("[發送對象數] " + (keySocketChannelsForFile.size() - 1));
                     break;
                 case 0x0D:
-                    int REMOTE_LENG = 8;
-                    byte[] remoteByte = new byte[REMOTE_LENG];
+                    short REMOTE_LENG = 8;
+                    short OFFSET_LENG = 3;
+                    short OFFSET_INDEX = 2;
+                    short keycodeLeng = bufferData.get(OFFSET_INDEX);
+                    int remoteRemaining = bufferData.remaining();
                     bufferData.position(0);
-                    bufferData.get(remoteByte, 0, bufferData.remaining());
 
-                    ByteBuffer remoteCtx = ByteBuffer.wrap(remoteByte);
+                    while((remoteRemaining = bufferData.remaining()) >= keycodeLeng + OFFSET_LENG){
+                        byte[] remoteByte = new byte[REMOTE_LENG];
+                        bufferData.get(remoteByte, 0, OFFSET_LENG + keycodeLeng);
 
-                    key = keys.get(selectionKeyHashCode);
-
-                    out.println("[" + clientRemoteAddress + "/" + key + "/傳輸控制訊息] ");
-
-                    ArrayList<SocketChannel> keySocketChannelsForRemote = keyGroups.get(key);
-                    Iterator<SocketChannel> keySocketChannelsForRemoteIterator = keySocketChannelsForRemote.iterator();
-                    while (keySocketChannelsForRemoteIterator.hasNext()) {
-                        SocketChannel curSocketChannel = keySocketChannelsForRemoteIterator.next();
-                        // keySocketChannelsForRemoteIterator.remove();
-                        if (curSocketChannel == socketChannel) {
-                            continue;
+                        ByteBuffer remoteCtx = ByteBuffer.wrap(remoteByte);
+    
+                        key = keys.get(selectionKeyHashCode);
+    
+                        // out.println("[" + clientRemoteAddress + "/" + key + "/傳輸控制訊息] ");
+    
+                        ArrayList<SocketChannel> keySocketChannelsForRemote = keyGroups.get(key);
+                        Iterator<SocketChannel> keySocketChannelsForRemoteIterator = keySocketChannelsForRemote.iterator();
+                        while (keySocketChannelsForRemoteIterator.hasNext()) {
+                            SocketChannel curSocketChannel = keySocketChannelsForRemoteIterator.next();
+                            // keySocketChannelsForRemoteIterator.remove();
+                            if (curSocketChannel == socketChannel) {
+                                continue;
+                            }
+                            curSocketChannel.write(remoteCtx);
                         }
-                        curSocketChannel.write(remoteCtx);
+                        // out.println("[發送對象數] " + (keySocketChannelsForRemote.size() - 1));
+
+                        bufferData.compact();
+                        bufferData.flip();
+                        if(bufferData.remaining() > OFFSET_LENG){
+                            keycodeLeng = bufferData.get(OFFSET_INDEX);
+                        }
                     }
-                    out.println("[發送對象數] " + (keySocketChannelsForRemote.size() - 1));
                     break;
             }
         } catch (Exception err) {
