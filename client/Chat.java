@@ -256,8 +256,7 @@ public class Chat {
         byte[] keyboardByteLeng = new byte[1];
 
         keyboard = new Keyboard() {
-            @Override
-            public void keyPressed(java.awt.event.KeyEvent evt) {
+            public void keyHandler(java.awt.event.KeyEvent evt, byte keyboardType){
                 int keyboardInt = evt.getKeyCode();
                 evt.consume();
                 byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
@@ -265,7 +264,7 @@ public class Chat {
 
                 ctx.put(OPByte);
 
-                keyBoardTypeByte[0] = 1;
+                keyBoardTypeByte[0] = keyboardType;
                 ctx.put(keyBoardTypeByte);
 
                 keyboardByteLeng[0] = (byte) keyboardByte.length;
@@ -284,30 +283,13 @@ public class Chat {
             }
 
             @Override
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                this.keyHandler(evt, (byte)1);
+            }
+
+            @Override
             public void keyReleased(java.awt.event.KeyEvent evt) {
-                int keyboardInt = evt.getKeyCode();
-                evt.consume();
-                byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
-                this.text.setText("");
-
-                ctx.put(OPByte);
-
-                keyBoardTypeByte[0] = 2;
-                ctx.put(keyBoardTypeByte);
-
-                keyboardByteLeng[0] = (byte) keyboardByte.length;
-                ctx.put(keyboardByteLeng);
-
-                ctx.put(keyboardByte);
-
-                ctx.flip();
-                try {
-                    socketChannel.write(ctx);
-                } catch (Exception err) {
-                    out.println("[按鍵傳輸失敗]");
-                } finally {
-                    ctx.clear();
-                }
+                this.keyHandler(evt, (byte)2);
             }
         };
         keyboard.addInputListener();
