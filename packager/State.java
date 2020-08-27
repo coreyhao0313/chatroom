@@ -1,6 +1,6 @@
-package server;
+package packager;
 
-public enum Control {
+public enum State {
     UNDEFINED((byte)0x00, "未定義"),
     NOTHING((byte)0x01, "-"),
     KEY((byte)0x0A, "KEY 輸入"),
@@ -11,7 +11,7 @@ public enum Control {
     public final byte code;
     public final String desc;
 
-    Control(byte code, String desc) {
+    State(byte code, String desc) {
         this.code = code;
         this.desc = desc;
     }

@@ -4,26 +4,16 @@ import java.awt.*;
 import java.awt.event.*;
 
 public class Keyboard extends KeyAdapter {
-    
     public Frame frame;
     public TextArea text;
     public KeyEvent KeyEvent;
-    public Robot robot;
 
-    public void addOutputController(){
-        try {
-            robot = new Robot();
-        } catch(Exception Err){
-            Err.printStackTrace();
-        }
-    }
-
-    public void addInputListener(){
+    public void setInputListener(){
         this.frame = new Frame("ChatRemote");
 
         this.frame.setFocusTraversalKeysEnabled(false);
 
-        this.frame.addWindowListener(new Remote());
+        this.frame.addWindowListener(new Window());
         this.frame.setSize(500, 500);
 
         this.text = new TextArea();
@@ -43,7 +33,7 @@ public class Keyboard extends KeyAdapter {
     }
 }
 
-class Remote extends WindowAdapter {
+class Window extends WindowAdapter {
     public void windowClosing(WindowEvent evt) {
         System.exit(0);
     }
