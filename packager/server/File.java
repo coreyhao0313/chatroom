@@ -9,9 +9,9 @@ import java.util.Iterator;
 import static java.lang.System.out;
 
 public class File {
-    public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer selectionKeyHashCode, Key key)
+    public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer targetKey, Key key)
             throws Exception {
-        String keyName = key.getName(selectionKeyHashCode);
+        String keyName = key.getName(targetKey);
 
         // out.println("[" + clientRemoteAddress + "/" + key + "/傳輸檔案] ");
 

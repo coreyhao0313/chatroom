@@ -9,7 +9,7 @@ public class Remote {
     public final static short REMOTE_LENG = 8;
     public final static short OFFSET_LENG = 3;
     public final static short OFFSET_INDEX = 2;
-    public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer selectionKeyHashCode, Key key)
+    public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer targetKey, Key key)
             throws Exception {
         short keycodeLeng = byteBuffer.get(OFFSET_INDEX);
         int remoteRemaining = byteBuffer.remaining();
@@ -20,7 +20,7 @@ public class Remote {
             byteBuffer.get(remoteByte, 0, OFFSET_LENG + keycodeLeng);
             ByteBuffer ctx = ByteBuffer.wrap(remoteByte);
 
-            String keyName = key.getName(selectionKeyHashCode);
+            String keyName = key.getName(targetKey);
 
             // out.println("[" + clientRemoteAddress + "/" + key + "/傳輸控制訊息] ");
 

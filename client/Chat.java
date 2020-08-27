@@ -14,30 +14,22 @@ import java.io.BufferedReader;
 
 import static java.lang.System.out;
 
+import packager.CsocketClient;
 import packager.State;
 import packager.client.*;
 
-public class Chat {
-    private SocketChannel socketChannel;
+public class Chat implements CsocketClient {
+    public SocketChannel socketChannel;
     private Selector selector;
     private byte channelStatus = State.UNDEFINED.code;
-    private InputStreamReader ISR;
-    private BufferedReader BR;
-
     private Remote remote;
     private File file;
     private Key key;
 
-    public Chat(String address, int port) {
-        this.createConnection(address, port);
-
-        this.ISR = new InputStreamReader(System.in);
-        this.BR = new BufferedReader(ISR);
+    public Chat() {
         this.remote = new Remote();
         this.file = new File();
         this.key = new Key();
-
-        this.setHandler();
     }
 
     public void createConnection(String address, int port) {
@@ -54,7 +46,7 @@ public class Chat {
         }
     }
 
-    public void setHandler() {
+    public void setMainHandler() {
         while (true) {
             try {
                 this.selector.select();
@@ -66,7 +58,9 @@ public class Chat {
                     SelectionKey selectionKey = (SelectionKey) selectionKeysIterator.next();
                     SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
                     selectionKeysIterator.remove();
-
+                    if (!selectionKey.isValid()) {
+                        continue;
+                    }
                     if (selectionKey.isConnectable()) {
                         this.setConnectHandler(socketChannel);
                         new Thread(this.setInputHandler(socketChannel)).start();
@@ -114,6 +108,8 @@ public class Chat {
     }
 
     public Runnable setInputHandler(SocketChannel socketChannel) {
+        InputStreamReader ISR = new InputStreamReader(System.in);
+        BufferedReader BR = new BufferedReader(ISR);
         return new Runnable() {
             @Override
             public void run() {

@@ -7,31 +7,24 @@ import java.nio.channels.SelectionKey;
 import java.nio.ByteBuffer;
 import java.net.InetSocketAddress;
 import java.util.Set;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.ArrayList;
 
 import static java.lang.System.out;
 
+import packager.CsocketServer;
 import packager.State;
 import packager.server.*;
 
-public class Center {
-    private ServerSocketChannel serverSocketChannel;
+public class Center implements CsocketServer {
+    public ServerSocketChannel serverSocketChannel;
     private Selector selector;
-    // private Map<Integer, String> keys;
-    // private Map<String, ArrayList<SocketChannel>> keyGroups;
-    private ArrayList<Integer> onHandling;
+    private ArrayList<Integer> lockingKeys;
     private Key key;
 
-    public Center(int port) {
-        this.createConnection(port);
-        
-        this.onHandling = new ArrayList<Integer>();
+    public Center() {
+        this.lockingKeys = new ArrayList<Integer>();
         this.key = new Key();
-
-        this.setHandler();
     }
 
     public void createConnection(int port) {
@@ -47,7 +40,7 @@ public class Center {
         }
     }
 
-    private void setHandler() {
+    public void setMainHandler() {
         while (true) {
             try {
                 selector.select();
@@ -62,9 +55,11 @@ public class Center {
                         continue;
                     }
                     if (selectionKey.isAcceptable()) {
-                        this.setConnectHandler(selectionKey).run();
-                    } else if (selectionKey.isReadable() && !onHandling.contains(selectionKey.hashCode())) {
-                        new Thread(this.handler(selectionKey)).start();
+                        this.setConnectHandler(selectionKey);
+                    } else if (selectionKey.isReadable() && !lockingKeys.contains(selectionKey.hashCode())) {
+                        SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+                        Integer targetKey = selectionKey.hashCode();
+                        new Thread(this.handler(socketChannel, targetKey)).start();
                     }
                 }
             } catch (Exception err) {
@@ -73,53 +68,45 @@ public class Center {
         }
     }
 
-    public Runnable setConnectHandler(SelectionKey selectionKey) {
-        return new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    ServerSocketChannel ServerSocketChennal = (ServerSocketChannel) selectionKey.channel();
-                    SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
+    public void setConnectHandler(SelectionKey selectionKey) {
+        try {
+            ServerSocketChannel ServerSocketChennal = (ServerSocketChannel) selectionKey.channel();
+            SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
 
-                    if (socketChannel.isConnectionPending()) {
-                        socketChannel.finishConnect(); // padding on connection
-                    }
-                    socketChannel.configureBlocking(false);
-                    socketChannel.register(selector, selectionKey.OP_READ);
-                    out.println("[建立連線] " + socketChannel.getRemoteAddress());
-                } catch (Exception err) {
-                    throw new Error("建立連線失敗");
-                }
-            }
-        };
+            // if (socketChannel.isConnectionPending()) {
+            //     socketChannel.finishConnect(); // padding on connection
+            // }
+            socketChannel.configureBlocking(false);
+            socketChannel.register(selector, selectionKey.OP_READ);
+            out.println("[建立連線] " + socketChannel.getRemoteAddress());
+        } catch (Exception err) {
+            throw new Error("建立連線失敗");
+        }
     }
 
-    public Runnable handler(SelectionKey selectionKey) {
-        Integer selectionKeyHashCode = selectionKey.hashCode();
-        this.onHandling.add(selectionKeyHashCode);
+    public Runnable handler(SocketChannel socketChannel, Integer targetKey) {
+        this.lockingKeys.add(targetKey);
 
         return new Runnable() {
             @Override
             public void run() {
-                SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
-
                 try {
-                    if (dispatch(socketChannel, selectionKeyHashCode) == -1) {
+                    if (dispatch(socketChannel, targetKey) == -1) {
                         out.println("[連線中斷] " + socketChannel.getRemoteAddress());
                         socketChannel.close();
 
-                        key.remove(selectionKeyHashCode, socketChannel);
+                        key.remove(targetKey, socketChannel);
                     }
                 } catch (Exception err) {
                     throw new Error("處理階段失敗，可能包含傳輸異常");
                 } finally {
-                    onHandling.remove(selectionKeyHashCode);
+                    lockingKeys.remove(targetKey);
                 }
             }
         };
     }
 
-    public int dispatch(SocketChannel socketChannel, Integer selectionKeyHashCode) throws Exception {
+    public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
         String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
 
         ByteBuffer byteBuffer = ByteBuffer.allocate(2048);
@@ -150,18 +137,18 @@ public class Center {
 
                 case 0x0A:
                     // key.groups;
-                    this.key.handle(byteBuffer, socketChannel, selectionKeyHashCode);
+                    this.key.handle(byteBuffer, socketChannel, targetKey);
                     break;
 
                 case 0x0B:
-                    Message.handle(byteBuffer, socketChannel, selectionKeyHashCode, this.key, clientRemoteAddress);
+                    Message.handle(byteBuffer, socketChannel, targetKey, this.key, clientRemoteAddress);
                     break;
 
                 case 0x0C:
-                    File.handle(byteBuffer, socketChannel, selectionKeyHashCode, this.key);
+                    File.handle(byteBuffer, socketChannel, targetKey, this.key);
                     break;
                 case 0x0D:
-                    Remote.handle(byteBuffer, socketChannel, selectionKeyHashCode, this.key);
+                    Remote.handle(byteBuffer, socketChannel, targetKey, this.key);
                     break;
             }
         } catch (Exception err) {
