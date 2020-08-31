@@ -1,4 +1,4 @@
-package packager;
+package base;
 
 public enum State {
     UNDEFINED((byte)0x00, "未定義"),

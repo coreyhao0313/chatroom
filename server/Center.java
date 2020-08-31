@@ -4,27 +4,32 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.Selector;
 import java.nio.channels.SelectionKey;
-import java.nio.ByteBuffer;
+// import java.nio.ByteBuffer;
 import java.net.InetSocketAddress;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import static java.lang.System.out;
 
-import packager.CsocketServer;
-import packager.State;
+import base.CsocketServer;
+import base.State;
 import packager.server.*;
+import packager.Parser;
 
 public class Center implements CsocketServer {
     public ServerSocketChannel serverSocketChannel;
     private Selector selector;
     private ArrayList<Integer> lockingKeys;
     private Key key;
+    public Map<Integer, Parser> targetPackages;
 
     public Center() {
         this.lockingKeys = new ArrayList<Integer>();
         this.key = new Key();
+        this.targetPackages = new HashMap<Integer, Parser>();
     }
 
     public void createConnection(int port) {
@@ -59,7 +64,8 @@ public class Center implements CsocketServer {
                     } else if (selectionKey.isReadable() && !lockingKeys.contains(selectionKey.hashCode())) {
                         SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
                         Integer targetKey = selectionKey.hashCode();
-                        new Thread(this.handler(socketChannel, targetKey)).start();
+                        // new Thread(this.handler(socketChannel, targetKey)).start();
+                        this.handler(socketChannel, targetKey).run();
                     }
                 }
             } catch (Exception err) {
@@ -98,6 +104,7 @@ public class Center implements CsocketServer {
                         key.remove(targetKey, socketChannel);
                     }
                 } catch (Exception err) {
+                    err.printStackTrace();
                     throw new Error("處理階段失敗，可能包含傳輸異常");
                 } finally {
                     lockingKeys.remove(targetKey);
@@ -107,53 +114,46 @@ public class Center implements CsocketServer {
     }
 
     public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
-        String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
-
-        ByteBuffer byteBuffer = ByteBuffer.allocate(2048);
-        int curBufferLeng = socketChannel.read(byteBuffer);
-
-        if (curBufferLeng == -1 || curBufferLeng == 0) {
-            return curBufferLeng;
+        Parser pkg;
+        if((pkg = this.targetPackages.get(targetKey)) == null){
+            pkg = new Parser(4096);
+            this.targetPackages.put(targetKey, pkg);
+            pkg.fetchToSetHead(socketChannel);
         }
-        byteBuffer.flip();
-
-        byte prefix = byteBuffer.get();
-        byte channelStatus = State.UNDEFINED.code;
-        for (State c : State.values()) {
-            if (c.code == prefix) {
-                channelStatus = prefix;
-            }
-        }
-
+        
         try {
-            switch (channelStatus) {
+            switch (pkg.type) {
                 case 0x00:
-                    out.println(State.UNDEFINED.desc);
+                    // out.println(State.UNDEFINED.desc);
                     break;
 
                 case 0x01:
-                    out.println(State.NOTHING.desc);
+                    // out.println(State.NOTHING.desc);
                     break;
 
                 case 0x0A:
-                    // key.groups;
-                    this.key.handle(byteBuffer, socketChannel, targetKey);
+                    // this.key.handle(byteBuffer, socketChannel, targetKey);
                     break;
 
                 case 0x0B:
-                    Message.handle(byteBuffer, socketChannel, targetKey, this.key, clientRemoteAddress);
+                    // String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
+                    // Message.handle(byteBuffer, socketChannel, targetKey, this.key, clientRemoteAddress);
                     break;
 
                 case 0x0C:
-                    File.handle(byteBuffer, socketChannel, targetKey, this.key);
+                    File.handle(pkg, socketChannel, targetKey, this.key);
                     break;
                 case 0x0D:
-                    Remote.handle(byteBuffer, socketChannel, targetKey, this.key);
+                    // Remote.handle(byteBuffer, socketChannel, targetKey, this.key);
                     break;
             }
         } catch (Exception err) {
             err.printStackTrace();
+        } finally {
+            if(pkg.hasDone()){
+                targetPackages.remove(targetKey);
+            }
         }
-        return curBufferLeng;
+        return pkg.readLeng;
     }
 }

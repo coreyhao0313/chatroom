@@ -20,9 +20,9 @@ public class Key {
 
     public void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, int who) {
         int keyLeng = byteBuffer.remaining();
-        byte[] keyByte = new byte[keyLeng];
-        byteBuffer.get(keyByte, 0, keyLeng);
-        String keyName = new String(keyByte);
+        byte[] keyBytes = new byte[keyLeng];
+        byteBuffer.get(keyBytes, 0, keyLeng);
+        String keyName = new String(keyBytes);
 
         if(this.register(who, keyName, socketChannel) == 1){
             out.println("[Key 登入] " + keyName);

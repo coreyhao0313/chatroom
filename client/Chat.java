@@ -14,22 +14,24 @@ import java.io.BufferedReader;
 
 import static java.lang.System.out;
 
-import packager.CsocketClient;
-import packager.State;
+import base.CsocketClient;
+import base.State;
 import packager.client.*;
+import packager.Parser;
 
 public class Chat implements CsocketClient {
     public SocketChannel socketChannel;
     private Selector selector;
-    private byte channelStatus = State.UNDEFINED.code;
     private Remote remote;
     private File file;
     private Key key;
+    private Parser myPackage;
 
     public Chat() {
         this.remote = new Remote();
         this.file = new File();
         this.key = new Key();
+        this.myPackage = new Parser(2048);
     }
 
     public void createConnection(String address, int port) {
@@ -94,7 +96,6 @@ public class Chat implements CsocketClient {
                 case -1:
                     out.println("[連線中斷] " + socketChannel.getRemoteAddress());
                     socketChannel.close();
-                    this.channelStatus = State.UNDEFINED.code;
                     System.exit(0);
                     break;
 
@@ -124,9 +125,10 @@ public class Chat implements CsocketClient {
                         Pattern patternRemote = Pattern.compile("^/remote\\s?(me)?");
                         Matcher matcherRemote = patternRemote.matcher(inputText);
 
-                        if (key.value == null) {
-                            key.send(socketChannel, inputText);
-                        } else if (matcherFile.matches()) {
+                        // if (key.value == null) {
+                        //     key.send(socketChannel, inputText);
+                        // } else 
+                        if (matcherFile.matches()) {
                             file.send(matcherFile.group(1), socketChannel);
                         } else if (matcherRemote.matches()) {
                             if (matcherRemote.group(1) != null) {
@@ -147,23 +149,11 @@ public class Chat implements CsocketClient {
     }
 
     public int dispatch(SocketChannel socketChannel) throws Exception {
-        ByteBuffer byteBuffer = ByteBuffer.allocate(2048);
-        int curBufferLeng = socketChannel.read(byteBuffer);
-
-        if (curBufferLeng == -1 || curBufferLeng == 0) {
-            return curBufferLeng;
-        }
-        byteBuffer.flip();
-
-        byte prefix = byteBuffer.get();
-        for (State c : State.values()) {
-            if (c.code == prefix) {
-                this.channelStatus = prefix;
-            }
-        }
+        Parser pkg = myPackage;
+        pkg.fetchToSetHead(socketChannel);
 
         try {
-            switch (this.channelStatus) {
+            switch (myPackage.type) {
                 case 0x00:
                     out.println(State.UNDEFINED.desc);
                     break;
@@ -177,20 +167,20 @@ public class Chat implements CsocketClient {
                     break;
 
                 case 0x0B:
-                    Message.handle(byteBuffer);
+                    // Message.handle(byteBuffer);
                     break;
 
                 case 0x0C:
-                    curBufferLeng = this.file.handle(byteBuffer, socketChannel);
+                    this.file.handle(pkg, socketChannel);
                     break;
 
                 case 0x0D:
-                    this.remote.handle(byteBuffer);
+                    // this.remote.handle(byteBuffer);
                     break;
             }
         } catch (Exception err) {
             err.printStackTrace();
         }
-        return curBufferLeng;
+        return pkg.readLeng;
     }
 }

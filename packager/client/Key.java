@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 
 import static java.lang.System.out;
 
-import packager.State;
+import base.State;
 
 public class Key {
     public String value = null;
@@ -19,17 +19,17 @@ public class Key {
         if (matcher.matches()) {
             this.value = inputText;
 
-            byte[] OPByte = { State.KEY.code };
-            byte[] inputKeyByte = inputText.getBytes("UTF-8");
-            ByteBuffer ctx = ByteBuffer.allocate(inputKeyByte.length + OPByte.length);
+            byte[] OPBytes = { State.KEY.code };
+            byte[] inputKeyBytes = inputText.getBytes("UTF-8");
+            ByteBuffer ctx = ByteBuffer.allocate(inputKeyBytes.length + OPBytes.length);
 
-            ctx.put(OPByte);
-            ctx.put(inputKeyByte);
+            ctx.put(OPBytes);
+            ctx.put(inputKeyBytes);
             ctx.flip();
 
             socketChannel.write(ctx);
-        } else {
-            out.println("[格式錯誤] Key 必須為 6-12 個字元間");
+            return ;
         }
+        out.println("[格式錯誤] Key 必須為 6-12 個字元間");
     }
 }

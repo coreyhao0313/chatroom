@@ -3,9 +3,9 @@ import java.util.regex.Pattern;
 
 import server.Center;
 import client.Chat;
-import packager.Csocket;
-import packager.CsocketServer;
-import packager.CsocketClient;
+import base.Csocket;
+import base.CsocketServer;
+import base.CsocketClient;
 
 import static java.lang.System.out;
 

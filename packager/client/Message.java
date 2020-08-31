@@ -5,17 +5,17 @@ import java.nio.ByteBuffer;
 
 import static java.lang.System.out;
 
-import packager.State;
+import base.State;
 
 public class Message {
 
     public static void send(SocketChannel socketChannel, String inputText) throws Exception {
-        byte[] OPByte = { State.MESSAGE.code };
-        byte[] inputTextByte = inputText.getBytes("UTF-8");
-        byte[] ctx = new byte[inputTextByte.length + OPByte.length];
+        byte[] OPBytes = { State.MESSAGE.code };
+        byte[] inputTextBytes = inputText.getBytes("UTF-8");
+        byte[] ctx = new byte[inputTextBytes.length + OPBytes.length];
 
-        System.arraycopy(OPByte, 0, ctx, 0, OPByte.length);
-        System.arraycopy(inputTextByte, 0, ctx, OPByte.length, inputTextByte.length);
+        System.arraycopy(OPBytes, 0, ctx, 0, OPBytes.length);
+        System.arraycopy(inputTextBytes, 0, ctx, OPBytes.length, inputTextBytes.length);
 
         socketChannel.write(ByteBuffer.wrap(ctx));
     }
@@ -25,16 +25,16 @@ public class Message {
             ;
         int breakpointOffset = byteBuffer.position();
 
-        byte[] clientInfoByte = new byte[breakpointOffset - 1];
+        byte[] clientInfoBytes = new byte[breakpointOffset - 1];
         byteBuffer.position(1);
-        byteBuffer.get(clientInfoByte, 0, breakpointOffset - 1);
-        String clientInfo = new String(clientInfoByte);
+        byteBuffer.get(clientInfoBytes, 0, breakpointOffset - 1);
+        String clientInfo = new String(clientInfoBytes);
         out.print("[" + clientInfo + "] ");
 
         int messageByteLeng = byteBuffer.remaining();
-        byte[] clientMessageByte = new byte[messageByteLeng];
-        byteBuffer.get(clientMessageByte, 0, messageByteLeng);
-        out.print(new String(clientMessageByte));
+        byte[] clientMessageBytes = new byte[messageByteLeng];
+        byteBuffer.get(clientMessageBytes, 0, messageByteLeng);
+        out.print(new String(clientMessageBytes));
         out.println();
     }
 }

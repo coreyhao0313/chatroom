@@ -5,44 +5,44 @@ import java.nio.channels.SocketChannel;
 
 import static java.lang.System.out;
 
-import packager.State;
+import base.State;
 
 public class Message {
     public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer targetKey, Key key,
             String clientRemoteAddress) throws Exception {
-        byte[] ctxByte = new byte[2048];
+        byte[] ctxBytes = new byte[2048];
         byte[] OP_MESSAGE = { State.MESSAGE.code };
 
         // head
-        System.arraycopy(OP_MESSAGE, 0, ctxByte, 0, OP_MESSAGE.length);
+        System.arraycopy(OP_MESSAGE, 0, ctxBytes, 0, OP_MESSAGE.length);
 
         // info
-        byte[] clientInfoByte = clientRemoteAddress.getBytes("UTF-8");
-        System.arraycopy(clientInfoByte, 0, ctxByte, OP_MESSAGE.length, clientInfoByte.length);
+        byte[] clientInfoBytes = clientRemoteAddress.getBytes("UTF-8");
+        System.arraycopy(clientInfoBytes, 0, ctxBytes, OP_MESSAGE.length, clientInfoBytes.length);
 
         byte[] OPByte_SPLIT = { State.NOTHING.code };
 
         // split
-        System.arraycopy(OPByte_SPLIT, 0, ctxByte, OP_MESSAGE.length + clientInfoByte.length, OPByte_SPLIT.length);
+        System.arraycopy(OPByte_SPLIT, 0, ctxBytes, OP_MESSAGE.length + clientInfoBytes.length, OPByte_SPLIT.length);
 
         // message
         int msgByteLeng = byteBuffer.remaining();
-        byte[] msgByte = new byte[msgByteLeng];
-        byteBuffer.get(msgByte, 0, msgByteLeng);
+        byte[] msgBytes = new byte[msgByteLeng];
+        byteBuffer.get(msgBytes, 0, msgByteLeng);
 
-        System.arraycopy(msgByte, 0, ctxByte, OP_MESSAGE.length + clientInfoByte.length + OPByte_SPLIT.length,
-                msgByte.length);
+        System.arraycopy(msgBytes, 0, ctxBytes, OP_MESSAGE.length + clientInfoBytes.length + OPByte_SPLIT.length,
+                msgBytes.length);
 
         String keyName = key.getName(targetKey);
 
-        out.println("[" + new String(clientInfoByte) + "/" + keyName + "/傳輸訊息] ");
-        out.println(new String(msgByte));
+        out.println("[" + new String(clientInfoBytes) + "/" + keyName + "/傳輸訊息] ");
+        out.println(new String(msgBytes));
 
         int emitCount = key.emitOther(keyName, socketChannel, new Key() {
             @Override
             public void emitRun(SocketChannel targetSocketChannel) {
                 try {
-                    targetSocketChannel.write(ByteBuffer.wrap(ctxByte));
+                    targetSocketChannel.write(ByteBuffer.wrap(ctxBytes));
                 } catch (Exception err) {
                     out.println("[對象發送失敗]");
                 }

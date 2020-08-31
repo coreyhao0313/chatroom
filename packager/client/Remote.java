@@ -6,7 +6,7 @@ import java.awt.Robot;
 
 import static java.lang.System.out;
 
-import packager.State;
+import base.State;
 import client.Keyboard;
 
 public class Remote {
@@ -22,27 +22,27 @@ public class Remote {
     }
 
     public void setKeyboardSender(SocketChannel socketChannel) {
-        byte[] OPByte = { State.REMOTE.code };
+        byte[] OPBytes = { State.REMOTE.code };
         ByteBuffer ctx = ByteBuffer.allocate(8);
-        byte[] keyBoardTypeByte = new byte[1];
+        byte[] keyBoardTypeBytes = new byte[1];
         byte[] keyboardByteLeng = new byte[1];
 
         Keyboard keyboard = new Keyboard() {
             public void keyHandler(java.awt.event.KeyEvent evt, byte keyboardType) {
                 int keyboardInt = evt.getKeyCode();
                 evt.consume();
-                byte[] keyboardByte = String.valueOf(keyboardInt).getBytes();
+                byte[] keyboardBytes = String.valueOf(keyboardInt).getBytes();
                 this.text.setText("");
 
-                ctx.put(OPByte);
+                ctx.put(OPBytes);
 
-                keyBoardTypeByte[0] = keyboardType;
-                ctx.put(keyBoardTypeByte);
+                keyBoardTypeBytes[0] = keyboardType;
+                ctx.put(keyBoardTypeBytes);
 
-                keyboardByteLeng[0] = (byte) keyboardByte.length;
+                keyboardByteLeng[0] = (byte) keyboardBytes.length;
                 ctx.put(keyboardByteLeng);
 
-                ctx.put(keyboardByte);
+                ctx.put(keyboardBytes);
 
                 ctx.flip();
                 try {

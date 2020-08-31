@@ -16,9 +16,9 @@ public class Remote {
         byteBuffer.position(0);
 
         while ((remoteRemaining = byteBuffer.remaining()) >= keycodeLeng + OFFSET_LENG) {
-            byte[] remoteByte = new byte[REMOTE_LENG];
-            byteBuffer.get(remoteByte, 0, OFFSET_LENG + keycodeLeng);
-            ByteBuffer ctx = ByteBuffer.wrap(remoteByte);
+            byte[] remoteBytes = new byte[REMOTE_LENG];
+            byteBuffer.get(remoteBytes, 0, OFFSET_LENG + keycodeLeng);
+            ByteBuffer ctx = ByteBuffer.wrap(remoteBytes);
 
             String keyName = key.getName(targetKey);
 

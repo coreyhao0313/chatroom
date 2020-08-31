@@ -12,151 +12,136 @@ import java.io.BufferedOutputStream;
 
 import static java.lang.System.out;
 
-import packager.State;
+import base.State;
+import packager.Parser;
+import packager.Packager;
 
 public class File {
     public FileOutputStream FOS;
     public BufferedOutputStream BOS;
 
-    public long uploadByteFullSize = 0;
-    public long uploadByteSize = 0;
+    public long uploadTotalSize = 0;
+    public long uploadSize = 0;
 
-    public long downloadByteFullSize = 0;
-    public long downloadByteSize = 0;
+    public String downloadName;
+    public long downloadTotalSize;
+    public long downloadSize;
 
-    
     public void send(String path, SocketChannel socketChannel) {
         try {
             Path filePath = Paths.get(path).normalize();
             String fileName = filePath.getFileName().toString();
             long fileSize = Files.size(filePath);
-            this.uploadByteFullSize = fileSize;
-            String fileSizeString = String.valueOf(fileSize);
+            if (fileSize == 0) {
+                out.println("[不可傳輸空檔案]");
+                return;
+            }
+            this.uploadTotalSize = fileSize;
             out.println("[傳輸檔案] " + fileName);
 
             FileInputStream FIS = new FileInputStream(path);
             BufferedInputStream BIS = new BufferedInputStream(FIS, 65536);
 
-            byte[] OPByte = { State.FILE.code, 1 };
-            byte[] fileNameByte = fileName.getBytes("UTF-8");
-            byte[] OPByte_SPLIT = { State.NOTHING.code };
-            byte[] fileByte = new byte[2046];
-            ByteBuffer ctx = ByteBuffer.allocate(2048);
+            Packager pkgFileName = new Packager(512);
+            byte[] fileNameBytes = fileName.getBytes("UTF-8");
+            pkgFileName.setHead(State.FILE.code, fileNameBytes.length);
+            pkgFileName.write(fileNameBytes);
+            pkgFileName.sendTo(socketChannel);
 
-            ctx.put(OPByte);
-            ctx.put(fileNameByte);
-            ctx.put(OPByte_SPLIT);
-            ctx.put(fileSizeString.getBytes());
-            ctx.put(OPByte_SPLIT);
+            Packager pkgFileSize = new Packager(Long.BYTES + Packager.INFO_LENG);
+            byte[] fileSizeBytes = ByteBuffer.allocate(Long.BYTES).putLong(fileSize).array();
+            pkgFileSize.setHead(State.FILE.code, fileSizeBytes.length);
+            pkgFileSize.write(fileSizeBytes);
+            pkgFileSize.sendTo(socketChannel);
 
-            int fileByteRemaining = ctx.remaining();
-            int fileByteLeng = BIS.read(fileByte, 0, fileByteRemaining);
+            Packager pkgFile = new Packager(4096);
+            pkgFile.setHead(State.FILE.code, (int)fileSize);
+            byte[] fileBytes = new byte[4096 - Packager.INFO_LENG];
 
-            ctx.put(fileByte, 0, fileByteLeng);
-            this.uploadByteSize = fileByteLeng;
+            int fileByteLeng;
+            while ((fileByteLeng = BIS.read(fileBytes)) != -1) {
+                pkgFile.write(fileBytes);
+                pkgFile.sendTo(socketChannel);
 
-            BIS.mark(0);
-            BIS.reset();
-
-            ctx.flip();
-            socketChannel.write(ctx);
-            out.println(this.uploadByteSize + " / " + this.uploadByteFullSize);
-
-            OPByte[1] = 0;
-            ctx.clear();
-            while ((fileByteLeng = BIS.read(fileByte)) != -1) {
-                ctx.put(OPByte);
-                ctx.put(fileByte);
-                ctx.flip();
-
-                socketChannel.write(ctx);
-                this.uploadByteSize += fileByteLeng;
-                out.println(this.uploadByteSize + " / " + this.uploadByteFullSize);
-
-                ctx.clear();
+                this.uploadSize += fileByteLeng;
+                out.println(this.uploadSize + " / " + this.uploadTotalSize);
             }
 
             BIS.close();
-            this.uploadByteSize = 0;
-            this.uploadByteFullSize = 0;
+            this.uploadSize = 0;
+            this.uploadTotalSize = 0;
 
             out.println("[傳輸完成]");
         } catch (Exception err) {
-            out.println("[讀檔或傳輸階段失敗]");
+            err.printStackTrace();
+            // out.println("[讀檔或傳輸階段失敗]");
         }
     }
 
-    public int handle(ByteBuffer byteBuffer, SocketChannel socketChannel) throws Exception {
-        if (byteBuffer.get() == 1) {
-            while (byteBuffer.get() != State.NOTHING.code)
-                ;
-            int fileNameByteLimit = byteBuffer.position();
-            while (byteBuffer.get() != State.NOTHING.code)
-                ;
-            int fileSizeByteLimit = byteBuffer.position();
+    public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
 
-            int START_POS = 2;
-            byteBuffer.position(START_POS);
+        pkg.setKeep(true);
+        pkg.fetch(socketChannel, new Parser() {
+            @Override
+            public void get(Parser self) {
+                out.println(self.getDataRemaining());
+                // byte[] stuffBytes = new byte[self.getDataRemaining()];
 
-            int fileNameByteLeng = fileNameByteLimit - 1 - START_POS;
-            byte[] fileNameByte = new byte[fileNameByteLeng];
-            byteBuffer.get(fileNameByte, 0, fileNameByteLeng);
-            String fileName = new String(fileNameByte);
+                // if (downloadName == null) {
+                //     byte[] fileNameBytes = stuffBytes;
+                //     self.ctx.get(fileNameBytes);
+                //     downloadName = new String(fileNameBytes);
+                //     createFile(downloadName);
 
-            byteBuffer.position(fileNameByteLimit);
+                //     out.println(downloadName);
+                //     return;
+                // }
+                // if (downloadTotalSize == 0) {
+                //     byte[] fileSizeBytes = stuffBytes;
+                //     self.ctx.get(fileSizeBytes);
+                //     downloadTotalSize = ByteBuffer.wrap(fileSizeBytes).getLong();
 
-            int fileSizeByteLeng = fileSizeByteLimit - 1 - fileNameByteLimit;
-            byte[] fileSizeByte = new byte[fileSizeByteLeng];
-            byteBuffer.get(fileSizeByte, 0, fileSizeByteLeng);
-            String fileSize = new String(fileSizeByte);
-            this.downloadByteFullSize = Long.parseLong(fileSize);
-            out.println("[接收檔案] " + fileName);
+                //     out.println(downloadTotalSize);
+                //     return;
+                // }
 
+                // if(self.hasOver()){
+                //     self.ctx.get(stuffBytes, 0, self.getOverPOS());
+                // }else{
+                //     self.ctx.get(stuffBytes);
+                // }
+                // try {
+                //     downloadSize += self.collectedLeng;
+                //     out.println(downloadSize + " / " + downloadTotalSize);
+
+                //     BOS.write(stuffBytes);
+                // } catch (Exception err){
+                //     err.printStackTrace();
+                // }
+            }
+
+            // @Override
+            // public void finish(Parser self) {
+            // }
+        });
+
+        // if (this.downloadSize >= this.downloadTotalSize) {
+        //     this.BOS.close();
+        //     this.downloadSize = 0;
+        //     this.downloadTotalSize = 0;
+
+        //     out.println("[接收完成]");
+        // }
+        return;
+    }
+
+    public boolean createFile (String fileName){
+        try {
             this.FOS = new FileOutputStream("./files/" + fileName);
             this.BOS = new BufferedOutputStream(FOS, 65536);
-
-            byteBuffer.position(fileSizeByteLimit);
+        } catch(Exception err){
+            return false;
         }
-        byte[] fileByte = new byte[2046];
-        int fileByteBufferRemaining = byteBuffer.remaining();
-        int fileSizeRemaining = (int) this.downloadByteFullSize - (int) this.downloadByteSize;
-        if (fileSizeRemaining < fileByteBufferRemaining) {
-            fileByteBufferRemaining = fileSizeRemaining;
-        }
-        byteBuffer.get(fileByte, 0, fileByteBufferRemaining);
-        this.downloadByteSize += fileByteBufferRemaining;
-
-        this.BOS.write(fileByte, 0, fileByteBufferRemaining);
-        out.println(this.downloadByteSize + " / " + this.downloadByteFullSize);
-
-        byteBuffer.clear();
-        int curBufferLeng;
-        while ((curBufferLeng = socketChannel.read(byteBuffer)) > 0) {
-            byteBuffer.position(2);
-
-            fileByteBufferRemaining = byteBuffer.remaining();
-            fileSizeRemaining = (int) this.downloadByteFullSize - (int) this.downloadByteSize;
-
-            if (fileSizeRemaining < fileByteBufferRemaining) {
-                fileByteBufferRemaining = fileSizeRemaining;
-            }
-            byteBuffer.get(fileByte, 0, fileByteBufferRemaining);
-            this.downloadByteSize += fileByteBufferRemaining;
-
-            this.BOS.write(fileByte, 0, fileByteBufferRemaining);
-            out.println(this.downloadByteSize + " / " + this.downloadByteFullSize);
-
-            byteBuffer.clear();
-        }
-
-        if (this.downloadByteSize >= this.downloadByteFullSize) {
-            this.BOS.close();
-            this.downloadByteSize = 0;
-            this.downloadByteFullSize = 0;
-
-            out.println("[接收完成]");
-        }
-
-        return curBufferLeng;
+        return true;
     }
 }
