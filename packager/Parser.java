@@ -3,22 +3,21 @@ package packager;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
-public class Parser {
-    private static final int INT_LENG = 4;
-    public static final int INFO_LENG = INT_LENG + 1;
+import base.packager.Head;
 
+public class Parser {
     public ByteBuffer ctx;
+    public int readableLeng = 0;
+    public int dataLimit = 0;
+    public int limit = 0;
     public int collLeng = 0;
-    public int dataLeng = 0;
-    public int maxLeng = 0;
+    public int nextPosition = 0;
     public byte type = 0;
-    public int readLeng = 0;
-    public boolean hasHead = false;
+    public int leng = 0;
     private boolean keep = false;
-    public int collPOS = 0;
 
     public Parser(int capacity) {
-        if (capacity < INFO_LENG) {
+        if (capacity < Head.INFO.LENG) {
             throw new Error("不可小於辨識用之長度");
         }
         this.ctx = ByteBuffer.allocate(capacity);
@@ -36,105 +35,112 @@ public class Parser {
         ;
     }
 
-    public void over(Parser self) {
+    public void next(Parser self) {
         ;
     }
 
-    public void fetchToSetHead(SocketChannel socketChannel) throws Exception {
-        if (this.hasHead) {
-            return;
+    public void fetchHead(SocketChannel socketChannel) throws Exception {
+        this.readableLeng = socketChannel.read(this.ctx);
+        if (this.readableLeng > 0) {
+            this.ctx.flip();
+            this.getHead();
         }
-        socketChannel.read(this.ctx);
-        this.ctx.flip();
-        setHead();
     }
 
-    public boolean setHead() {
-        this.readLeng = this.ctx.remaining();
-        if (this.readLeng <= INFO_LENG) {
+    public boolean getHead() {
+        int remaining = this.ctx.remaining();
+
+        if (remaining <= Head.INFO.LENG) {
             return false; // 小於可解析之長度
         }
-        byte[] lengBytes = new byte[INT_LENG];
-        this.ctx.get(lengBytes, 0, INT_LENG);
 
-        this.dataLeng = ByteBuffer.wrap(lengBytes).getInt();
-        this.type = this.ctx.get();
-        this.maxLeng = this.dataLeng + INFO_LENG;
+        if (this.ctx.get() == Head.HEAD_1.CODE && this.ctx.get() == Head.HEAD_2.CODE) {
+            this.ctx.put(this.ctx.position() - 1, (byte) 0);
 
-        this.collLeng = this.readLeng;
+            this.type = this.ctx.get();
 
-        return (this.hasHead = true);
+            byte[] lengBytes = new byte[Head.SIZE.LENG];
+            this.ctx.get(lengBytes, 0, Head.SIZE.LENG);
+            this.dataLimit = ByteBuffer.wrap(lengBytes).getInt();
+
+            this.limit = this.dataLimit + Head.INFO.LENG;
+            this.nextPosition += this.limit;
+            this.leng = 0;
+            return true;
+        }
+        return false;
     }
 
     public void fetch(SocketChannel socketChannel, Parser actParser) {
-        if (this.ctx.remaining() != 0) {
-            actParser.get(this);
-        }
-        if (this.hasFetchDone(socketChannel, actParser)) {
-            return;
-        }
-
         try {
-            this.ctx.clear();
-
-            while (socketChannel.read(this.ctx) > 0) {
-                this.ctx.flip();
-                this.collLeng += this.ctx.remaining();
-                actParser.get(this);
-                this.hasFetchDone(socketChannel, actParser);
+            while (this.reachHandler(socketChannel, actParser)) {
                 this.ctx.clear();
+                this.readableLeng = socketChannel.read(this.ctx);
+                this.ctx.flip();
             }
         } catch (Exception err) {
             err.printStackTrace();
         }
     }
 
-    private boolean hasFetchDone(SocketChannel socketChannel, Parser actParser) {
-        if (this.hasDone()) {
-            actParser.finish(this);
+    private boolean reachHandler(SocketChannel socketChannel, Parser actParser) {
+        int originPosition = this.ctx.position();
+        int originLimit = this.ctx.limit();
+        // if(originLimit == 0){
+        //     return false;
+        // }
 
-            if (this.hasOver()) {
-                if (this.keep) {
-                    this.setNext();
-                    this.setHead();
-                    this.fetch(socketChannel, actParser);
-                }
-                actParser.over(this);
+        this.collLeng += this.readableLeng;
+        this.leng += this.ctx.remaining();
+
+        int blockLimit = this.nextPosition > this.readableLeng ? this.readableLeng : this.nextPosition;
+        // System.out.println("nextPosition >> " + this.nextPosition);
+        // System.out.println("readableLeng >> " + readableLeng);
+        // System.out.println("blockLimit >> " + blockLimit);
+        this.ctx.limit(blockLimit);
+        actParser.get(this);
+
+        debug.packager.Parser pdebug = new debug.packager.Parser(this);
+        pdebug.log();
+
+        if (this.isDone()) {
+            actParser.next(this);
+            this.ctx.position(originPosition);
+
+            this.ctx.limit(originLimit);
+            if (this.tryNext(socketChannel, actParser)) {
+                return false;
             }
-            this.hasHead = false; // 重置 head 狀態
+            this.ctx.limit(blockLimit);
+            actParser.finish(this);
+            return false;
+        }
+        this.ctx.limit(originLimit);
+        return true;
+    }
+
+    public boolean tryNext(SocketChannel socketChannel, Parser actParser) {
+        int originPosition = this.ctx.position();
+        if (this.nextPosition > this.readableLeng) {
+            return false;
+        }
+        this.ctx.position(this.nextPosition);
+        if (this.getHead()) {
+            if (this.keep) {
+                this.fetch(socketChannel, actParser);
+            }
             return true;
         }
+
+        this.ctx.position(originPosition);
         return false;
-    }
-
-    public void setNext() {
-        this.collPOS += this.maxLeng;
-        this.ctx.position(this.getOverPOS());
-    }
-
-    public int getDataRemaining() {
-        int ctxCapacity = this.ctx.capacity();
-        return this.dataLeng > ctxCapacity ? ctxCapacity : this.dataLeng;
     }
 
     public void setKeep(boolean keep) {
         this.keep = keep;
     }
 
-    public boolean hasDone() {
-        return this.collLeng >= this.maxLeng;
-    }
-
-    public int getOverLeng() {
-        return this.collLeng - this.maxLeng;
-    }
-
-    public int getOverPOS() {
-        int ctxCapacity = this.ctx.capacity();
-        return this.collPOS > ctxCapacity ? 0 : this.collPOS;
-    }
-
-    public boolean hasOver() {
-        return this.collLeng > this.maxLeng;
+    public boolean isDone() {
+        return this.leng >= this.dataLimit;
     }
 }

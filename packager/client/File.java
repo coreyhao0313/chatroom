@@ -13,6 +13,7 @@ import java.io.BufferedOutputStream;
 import static java.lang.System.out;
 
 import base.State;
+import base.packager.Head;
 import packager.Parser;
 import packager.Packager;
 
@@ -44,28 +45,33 @@ public class File {
 
             Packager pkgFileName = new Packager(512);
             byte[] fileNameBytes = fileName.getBytes("UTF-8");
-            pkgFileName.setHead(State.FILE.code, fileNameBytes.length);
+            pkgFileName.setHead(State.FILE);
             pkgFileName.write(fileNameBytes);
             pkgFileName.sendTo(socketChannel);
 
-            Packager pkgFileSize = new Packager(Long.BYTES + Packager.INFO_LENG);
+            Packager pkgFileSize = new Packager(Long.BYTES + Head.INFO.LENG);
             byte[] fileSizeBytes = ByteBuffer.allocate(Long.BYTES).putLong(fileSize).array();
-            pkgFileSize.setHead(State.FILE.code, fileSizeBytes.length);
+            pkgFileSize.setHead(State.FILE);
             pkgFileSize.write(fileSizeBytes);
             pkgFileSize.sendTo(socketChannel);
 
-            Packager pkgFile = new Packager(4096);
-            pkgFile.setHead(State.FILE.code, (int)fileSize);
-            byte[] fileBytes = new byte[4096 - Packager.INFO_LENG];
+            Packager pkgFile = new Packager(128);
+            pkgFile.setHead(State.FILE, (int)fileSize);
+            byte[] fileBytes = new byte[pkgFile.ctx.capacity() - Head.INFO.LENG];
 
-            int fileByteLeng;
-            while ((fileByteLeng = BIS.read(fileBytes)) != -1) {
+            int fileByteLeng = BIS.read(fileBytes);
+            
+            do {
                 pkgFile.write(fileBytes);
                 pkgFile.sendTo(socketChannel);
 
                 this.uploadSize += fileByteLeng;
                 out.println(this.uploadSize + " / " + this.uploadTotalSize);
-            }
+
+                int remaining = fileBytes.length >= fileByteLeng ? fileByteLeng : pkgFile.ctx.capacity();
+                System.out.println(remaining);
+                fileBytes = new byte[remaining];
+            } while ((fileByteLeng = BIS.read(fileBytes)) != -1);
 
             BIS.close();
             this.uploadSize = 0;
@@ -80,11 +86,11 @@ public class File {
 
     public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
 
-        pkg.setKeep(true);
+        pkg.setKeep(false);
         pkg.fetch(socketChannel, new Parser() {
             @Override
             public void get(Parser self) {
-                out.println(self.getDataRemaining());
+                // out.println(self.getDataRemaining());
                 // byte[] stuffBytes = new byte[self.getDataRemaining()];
 
                 // if (downloadName == null) {
@@ -121,7 +127,7 @@ public class File {
             }
 
             // @Override
-            // public void finish(Parser self) {
+            // public void next(Parser self) {
             // }
         });
 

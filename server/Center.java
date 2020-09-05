@@ -59,11 +59,11 @@ public class Center implements CsocketServer {
                     if (!selectionKey.isValid()) {
                         continue;
                     }
+                    Integer targetKey = selectionKey.hashCode();
                     if (selectionKey.isAcceptable()) {
                         this.setConnectHandler(selectionKey);
-                    } else if (selectionKey.isReadable() && !lockingKeys.contains(selectionKey.hashCode())) {
+                    } else if (selectionKey.isReadable() && !lockingKeys.contains(targetKey)) {
                         SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
-                        Integer targetKey = selectionKey.hashCode();
                         // new Thread(this.handler(socketChannel, targetKey)).start();
                         this.handler(socketChannel, targetKey).run();
                     }
@@ -116,19 +116,20 @@ public class Center implements CsocketServer {
     public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
         Parser pkg;
         if((pkg = this.targetPackages.get(targetKey)) == null){
-            pkg = new Parser(4096);
+            pkg = new Parser(128);
             this.targetPackages.put(targetKey, pkg);
-            pkg.fetchToSetHead(socketChannel);
+            pkg.fetchHead(socketChannel);
+            out.println("x");
         }
-        
+
         try {
             switch (pkg.type) {
                 case 0x00:
-                    // out.println(State.UNDEFINED.desc);
+                    out.println(State.UNDEFINED.desc);
                     break;
 
                 case 0x01:
-                    // out.println(State.NOTHING.desc);
+                    out.println(State.NOTHING.desc);
                     break;
 
                 case 0x0A:
@@ -150,10 +151,11 @@ public class Center implements CsocketServer {
         } catch (Exception err) {
             err.printStackTrace();
         } finally {
-            if(pkg.hasDone()){
+            if(pkg.isDone()){
                 targetPackages.remove(targetKey);
+                out.println("y");
             }
         }
-        return pkg.readLeng;
+        return pkg.readableLeng;
     }
 }

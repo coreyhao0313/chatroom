@@ -150,7 +150,7 @@ public class Chat implements CsocketClient {
 
     public int dispatch(SocketChannel socketChannel) throws Exception {
         Parser pkg = myPackage;
-        pkg.fetchToSetHead(socketChannel);
+        pkg.fetchHead(socketChannel);
 
         try {
             switch (myPackage.type) {
@@ -181,6 +181,6 @@ public class Chat implements CsocketClient {
         } catch (Exception err) {
             err.printStackTrace();
         }
-        return pkg.readLeng;
+        return pkg.readableLeng;
     }
 }
