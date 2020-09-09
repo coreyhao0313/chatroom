@@ -38,7 +38,7 @@ public class File {
                 return;
             }
             this.uploadTotalSize = fileSize;
-            out.println("[傳輸檔案] " + fileName);
+            out.println("[傳輸檔案名稱] " + fileName);
 
             FileInputStream FIS = new FileInputStream(path);
             BufferedInputStream BIS = new BufferedInputStream(FIS, 65536);
@@ -55,29 +55,32 @@ public class File {
             pkgFileSize.write(fileSizeBytes);
             pkgFileSize.sendTo(socketChannel);
 
-            Packager pkgFile = new Packager(128);
+            Packager pkgFile = new Packager(4096);
             pkgFile.setHead(State.FILE, (int)fileSize);
             byte[] fileBytes = new byte[pkgFile.ctx.capacity() - Head.INFO.LENG];
 
             int fileByteLeng = BIS.read(fileBytes);
             
             do {
+                if(fileBytes.length > fileByteLeng){
+                    byte[] fileByteFinalLeng = new byte[fileByteLeng];
+                    System.arraycopy(fileBytes, 0, fileByteFinalLeng, 0, fileByteLeng);
+                    fileBytes = fileByteFinalLeng;
+                }
                 pkgFile.write(fileBytes);
                 pkgFile.sendTo(socketChannel);
 
                 this.uploadSize += fileByteLeng;
                 out.println(this.uploadSize + " / " + this.uploadTotalSize);
 
-                int remaining = fileBytes.length >= fileByteLeng ? fileByteLeng : pkgFile.ctx.capacity();
-                System.out.println(remaining);
-                fileBytes = new byte[remaining];
+                fileBytes = new byte[pkgFile.ctx.capacity()];
             } while ((fileByteLeng = BIS.read(fileBytes)) != -1);
 
             BIS.close();
             this.uploadSize = 0;
             this.uploadTotalSize = 0;
 
-            out.println("[傳輸完成]");
+            out.println("[傳輸檔案完成]");
         } catch (Exception err) {
             err.printStackTrace();
             // out.println("[讀檔或傳輸階段失敗]");
@@ -86,68 +89,59 @@ public class File {
 
     public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
 
-        pkg.setKeep(false);
+        pkg.setProceeding(false);
         pkg.fetch(socketChannel, new Parser() {
             @Override
-            public void get(Parser self) {
-                // out.println(self.getDataRemaining());
-                // byte[] stuffBytes = new byte[self.getDataRemaining()];
+            public void breakPoint(Parser self) {
+                byte[] stuffBytes = self.getBytes();
+                self.ctx.get(stuffBytes);
+                
+                if (downloadName == null) {
+                    downloadName = new String(stuffBytes);
+                    out.println("[接收檔案名稱] " + downloadName);
 
-                // if (downloadName == null) {
-                //     byte[] fileNameBytes = stuffBytes;
-                //     self.ctx.get(fileNameBytes);
-                //     downloadName = new String(fileNameBytes);
-                //     createFile(downloadName);
+                } else if (downloadTotalSize == 0) {
+                    downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
+                    out.println("[接收檔案大小] " + downloadTotalSize);
 
-                //     out.println(downloadName);
-                //     return;
-                // }
-                // if (downloadTotalSize == 0) {
-                //     byte[] fileSizeBytes = stuffBytes;
-                //     self.ctx.get(fileSizeBytes);
-                //     downloadTotalSize = ByteBuffer.wrap(fileSizeBytes).getLong();
-
-                //     out.println(downloadTotalSize);
-                //     return;
-                // }
-
-                // if(self.hasOver()){
-                //     self.ctx.get(stuffBytes, 0, self.getOverPOS());
-                // }else{
-                //     self.ctx.get(stuffBytes);
-                // }
-                // try {
-                //     downloadSize += self.collectedLeng;
-                //     out.println(downloadSize + " / " + downloadTotalSize);
-
-                //     BOS.write(stuffBytes);
-                // } catch (Exception err){
-                //     err.printStackTrace();
-                // }
+                    out.println("[建檔階段]");
+                    try {
+                        FOS = new FileOutputStream("./files/" + downloadName);
+                        BOS = new BufferedOutputStream(FOS, 65536);
+                    } catch (Exception err){
+                        err.printStackTrace();
+                    }
+                }
             }
 
-            // @Override
-            // public void next(Parser self) {
-            // }
+            @Override
+            public void get(Parser self) {
+                if(BOS != null){
+                    byte[] fileBytes = self.getBytes();
+                    self.ctx.get(fileBytes);
+
+                    try {
+                        BOS.write(fileBytes);
+                        downloadSize += fileBytes.length;
+                        out.println(downloadSize + " / " + downloadTotalSize);
+                    } catch (Exception err){
+                        err.printStackTrace();
+                    }
+                }
+            }
+
+            @Override
+            public void finish(Parser self) {
+                if(BOS != null){
+                    try{
+                        out.println("[下載完成]");
+                        BOS.close();
+                    } catch(Exception err){
+                        err.printStackTrace();
+                    }
+                }
+            }
         });
-
-        // if (this.downloadSize >= this.downloadTotalSize) {
-        //     this.BOS.close();
-        //     this.downloadSize = 0;
-        //     this.downloadTotalSize = 0;
-
-        //     out.println("[接收完成]");
-        // }
         return;
-    }
-
-    public boolean createFile (String fileName){
-        try {
-            this.FOS = new FileOutputStream("./files/" + fileName);
-            this.BOS = new BufferedOutputStream(FOS, 65536);
-        } catch(Exception err){
-            return false;
-        }
-        return true;
     }
 }

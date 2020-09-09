@@ -9,6 +9,7 @@ import java.util.Iterator;
 
 import static java.lang.System.out;
 
+import packager.Parser;
 public class Key {
     public Map<Integer, String> keys;
     public Map<String, ArrayList<SocketChannel>> groups;
@@ -18,12 +19,10 @@ public class Key {
         this.groups = new HashMap<String, ArrayList<SocketChannel>>();
     }
 
-    public void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, int who) {
-        int keyLeng = byteBuffer.remaining();
-        byte[] keyBytes = new byte[keyLeng];
-        byteBuffer.get(keyBytes, 0, keyLeng);
-        String keyName = new String(keyBytes);
-
+    public void handle(Parser pkg, SocketChannel socketChannel, int who) {
+        pkg.fetch(socketChannel);
+        String keyName = new String(pkg.getBytes());
+        
         if(this.register(who, keyName, socketChannel) == 1){
             out.println("[Key 登入] " + keyName);
         } else {

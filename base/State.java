@@ -8,15 +8,11 @@ public enum State {
     FILE((byte)0x0C, "檔案流"),
     REMOTE((byte)0x0D, "遠端流");
 
-    public final byte code;
-    public final String desc;
+    public final byte CODE;
+    public final String DESC;
 
     State(byte code, String desc) {
-        this.code = code;
-        this.desc = desc;
-    }
-    
-    public String getDesc(){
-        return this.desc;
+        this.CODE = code;
+        this.DESC = desc;
     }
 }

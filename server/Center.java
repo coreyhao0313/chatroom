@@ -116,24 +116,23 @@ public class Center implements CsocketServer {
     public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
         Parser pkg;
         if((pkg = this.targetPackages.get(targetKey)) == null){
-            pkg = new Parser(128);
+            pkg = new Parser(4096);
             this.targetPackages.put(targetKey, pkg);
             pkg.fetchHead(socketChannel);
-            out.println("x");
         }
 
         try {
             switch (pkg.type) {
                 case 0x00:
-                    out.println(State.UNDEFINED.desc);
+                    out.println(State.UNDEFINED.DESC);
                     break;
 
                 case 0x01:
-                    out.println(State.NOTHING.desc);
+                    out.println(State.NOTHING.DESC);
                     break;
 
                 case 0x0A:
-                    // this.key.handle(byteBuffer, socketChannel, targetKey);
+                    this.key.handle(pkg, socketChannel, targetKey);
                     break;
 
                 case 0x0B:
@@ -151,9 +150,9 @@ public class Center implements CsocketServer {
         } catch (Exception err) {
             err.printStackTrace();
         } finally {
-            if(pkg.isDone()){
+            if(pkg.isFinish()){
+                System.out.println('y');
                 targetPackages.remove(targetKey);
-                out.println("y");
             }
         }
         return pkg.readableLeng;

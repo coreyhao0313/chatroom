@@ -11,7 +11,7 @@ public class Message {
     public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer targetKey, Key key,
             String clientRemoteAddress) throws Exception {
         byte[] ctxBytes = new byte[2048];
-        byte[] OP_MESSAGE = { State.MESSAGE.code };
+        byte[] OP_MESSAGE = { State.MESSAGE.CODE };
 
         // head
         System.arraycopy(OP_MESSAGE, 0, ctxBytes, 0, OP_MESSAGE.length);
@@ -20,7 +20,7 @@ public class Message {
         byte[] clientInfoBytes = clientRemoteAddress.getBytes("UTF-8");
         System.arraycopy(clientInfoBytes, 0, ctxBytes, OP_MESSAGE.length, clientInfoBytes.length);
 
-        byte[] OPByte_SPLIT = { State.NOTHING.code };
+        byte[] OPByte_SPLIT = { State.NOTHING.CODE };
 
         // split
         System.arraycopy(OPByte_SPLIT, 0, ctxBytes, OP_MESSAGE.length + clientInfoBytes.length, OPByte_SPLIT.length);

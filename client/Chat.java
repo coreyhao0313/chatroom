@@ -31,7 +31,6 @@ public class Chat implements CsocketClient {
         this.remote = new Remote();
         this.file = new File();
         this.key = new Key();
-        this.myPackage = new Parser(2048);
     }
 
     public void createConnection(String address, int port) {
@@ -125,10 +124,9 @@ public class Chat implements CsocketClient {
                         Pattern patternRemote = Pattern.compile("^/remote\\s?(me)?");
                         Matcher matcherRemote = patternRemote.matcher(inputText);
 
-                        // if (key.value == null) {
-                        //     key.send(socketChannel, inputText);
-                        // } else 
-                        if (matcherFile.matches()) {
+                        if (key.value == null) {
+                            key.send(socketChannel, inputText);
+                        } else if (matcherFile.matches()) {
                             file.send(matcherFile.group(1), socketChannel);
                         } else if (matcherRemote.matches()) {
                             if (matcherRemote.group(1) != null) {
@@ -149,21 +147,24 @@ public class Chat implements CsocketClient {
     }
 
     public int dispatch(SocketChannel socketChannel) throws Exception {
-        Parser pkg = myPackage;
-        pkg.fetchHead(socketChannel);
+        if (this.myPackage == null) {
+            this.myPackage = new Parser(2048);
+            this.myPackage.fetchHead(socketChannel);
+        }
+        Parser pkg = this.myPackage;
 
         try {
             switch (myPackage.type) {
                 case 0x00:
-                    out.println(State.UNDEFINED.desc);
+                    out.println(State.UNDEFINED.DESC);
                     break;
 
                 case 0x01:
-                    out.println(State.NOTHING.desc);
+                    out.println(State.NOTHING.DESC);
                     break;
 
                 case 0x0A:
-                    out.println(State.KEY.desc);
+                    out.println(State.KEY.DESC);
                     break;
 
                 case 0x0B:
@@ -180,6 +181,10 @@ public class Chat implements CsocketClient {
             }
         } catch (Exception err) {
             err.printStackTrace();
+        } finally {
+            if (pkg.isFinish()) {
+                this.myPackage = null;
+            }
         }
         return pkg.readableLeng;
     }

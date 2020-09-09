@@ -13,14 +13,15 @@ public class Parser {
         System.out.println();
         System.out.println();
         int originPosition = parser.ctx.position();
-        if (originPosition > Head.SIZE.LENG + Head.PREFIX.LENG) {
-            parser.ctx.position(originPosition - Head.SIZE.LENG + Head.PREFIX.LENG);
+        if (originPosition >= Head.INFO.LENG) {
+            parser.ctx.position(originPosition - Head.INFO.LENG);
         }
         System.out.println("readableLeng > " + parser.readableLeng + ", ctx.remaining > " + parser.ctx.remaining());
-        System.out.println(
-                "collLeng > " + parser.collLeng + ", nextPosition > " + parser.nextPosition + ", limit > " + parser.limit);
+        System.out.println("nextPosition > " + parser.nextPosition + ", limit > " + parser.limit);
         System.out.println("leng > " + parser.leng + ", dataLimit > " + parser.dataLimit);
-        System.out.println("position() > " + parser.ctx.position() + ", limit() > " + parser.ctx.limit() + ", isDone > " + parser.isDone());
+        System.out.println("position() > " + parser.ctx.position() + ", limit() > " + parser.ctx.limit() + ", isBreakPoint > " + parser.isBreakPoint());
+        System.out.println("isFinish() > " + parser.isFinish());
+        
         byte[] fileBytes = new byte[parser.ctx.remaining()];
         System.out.println();
         parser.ctx.get(fileBytes);
@@ -29,5 +30,15 @@ public class Parser {
         }
         System.out.println();
         parser.ctx.position(originPosition);
+    }
+
+    public void log2(){
+        System.out.println("position() >> " + parser.ctx.position());
+        System.out.println("remaining() >> " + parser.ctx.remaining());
+        System.out.println("limit() >> " + parser.ctx.limit());
+        System.out.println("nextPosition >> " + parser.nextPosition);
+        System.out.println("readableLeng >> " + parser.readableLeng);
+        // System.out.println("blockLimit >> " + blockLimit);
+        System.out.println("##################################");
     }
 }

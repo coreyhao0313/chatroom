@@ -25,7 +25,7 @@ public class Packager {
     public void setHead(State state) {
         this.prefixBytes[0] = Head.HEAD_1.CODE;
         this.prefixBytes[1] = Head.HEAD_2.CODE;
-        this.prefixBytes[2] = state.code;
+        this.prefixBytes[2] = state.CODE;
 
         this.ctx.put(this.prefixBytes);
     }
@@ -56,12 +56,14 @@ public class Packager {
 
     public void sendTo(SocketChannel socketChannel) throws Exception {
         this.ctx.flip();
-        // socketChannel.write(this.ctx);
-
-        debug.packager.Packager pdebug = new debug.packager.Packager(this);
-        pdebug.log();
-
+        socketChannel.write(this.ctx);
+        // debug.packager.Packager pdebug = new debug.packager.Packager(this);
+        // pdebug.log();
         this.ctx.clear();
+    }
+
+    public void proceed(){
+        this.wroteHead = false;
     }
 
     // public static void sendEnd(SocketChannel socketChannel) throws Exception {

@@ -22,7 +22,7 @@ public class Remote {
     }
 
     public void setKeyboardSender(SocketChannel socketChannel) {
-        byte[] OPBytes = { State.REMOTE.code };
+        byte[] OPBytes = { State.REMOTE.CODE };
         ByteBuffer ctx = ByteBuffer.allocate(8);
         byte[] keyBoardTypeBytes = new byte[1];
         byte[] keyboardByteLeng = new byte[1];

@@ -13,8 +13,8 @@ public class Packager {
         System.out.println();
         System.out.println();
         int originPosition = packager.ctx.position();
-        if (originPosition > Head.SIZE.LENG + Head.PREFIX.LENG) {
-            packager.ctx.position(originPosition - Head.SIZE.LENG + Head.PREFIX.LENG);
+        if (originPosition >= Head.INFO.LENG) {
+            packager.ctx.position(originPosition - Head.INFO.LENG);
         }
         byte[] fileBytes = new byte[packager.ctx.remaining()];
         System.out.println();

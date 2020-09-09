@@ -10,7 +10,7 @@ import base.State;
 public class Message {
 
     public static void send(SocketChannel socketChannel, String inputText) throws Exception {
-        byte[] OPBytes = { State.MESSAGE.code };
+        byte[] OPBytes = { State.MESSAGE.CODE };
         byte[] inputTextBytes = inputText.getBytes("UTF-8");
         byte[] ctx = new byte[inputTextBytes.length + OPBytes.length];
 
@@ -21,7 +21,7 @@ public class Message {
     }
 
     public static void handle(ByteBuffer byteBuffer){
-        while (byteBuffer.get() != State.NOTHING.code)
+        while (byteBuffer.get() != State.NOTHING.CODE)
             ;
         int breakpointOffset = byteBuffer.position();
 
