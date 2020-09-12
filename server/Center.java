@@ -118,7 +118,10 @@ public class Center implements CsocketServer {
         if((pkg = this.targetPackages.get(targetKey)) == null){
             pkg = new Parser(4096);
             this.targetPackages.put(targetKey, pkg);
+
+            pkg.setVerifySameType(true);
             pkg.fetchHead(socketChannel);
+            System.out.println('x');
         }
 
         try {

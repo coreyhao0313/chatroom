@@ -8,17 +8,22 @@ import base.packager.Head;
 public class Parser {
     public ByteBuffer ctx;
     private ByteBuffer headCtx;
-    //todo
+    private boolean bindingSkipped = true;
+    private boolean verifySameType = false;
+    // todo
+    public int breakPointCount = 0;
     public boolean proceeding = false;
     public int nextPosition = 0;
+    public boolean isFinish = false;
     // private boolean proceeding = false;
     // private int nextPosition = 0;
-    private boolean isFinish = false;
+    // private boolean isFinish = false;
     public int readableLeng = 0;
     public int dataLimit = 0;
     public int limit = 0;
     public byte type = 0;
     public int leng = 0;
+    public Parser evtSelf = null;
 
     public Parser(int capacity) {
         if (capacity < Head.INFO.LENG) {
@@ -47,9 +52,12 @@ public class Parser {
 
     public boolean fetchHead(SocketChannel socketChannel) {
         try {
+            this.ctx.clear();
             this.readableLeng = socketChannel.read(this.ctx);
+            System.out.println("this.readableLeng >> " + this.readableLeng);
             if (this.readableLeng > 0) {
                 this.ctx.flip();
+                this.nextPosition = 0;
                 return this.getHead(socketChannel);
             }
         } catch (Exception err) {
@@ -58,47 +66,16 @@ public class Parser {
         return false;
     }
 
-    private boolean getHead(SocketChannel socketChannel) {
-        if (this.ctx.remaining() <= Head.INFO.LENG || this.headCtx.position() != 0) {
-            return this.partOfHeadHelper(socketChannel); // 小於可解析之長度
-        }
-        return this.getHead(this.ctx);
-    }
-
-    // private boolean getHead(SocketChannel socketChannel) {
-    //     if (this.ctx.remaining() <= Head.INFO.LENG) {
-    //         return false; // 小於可解析之長度
-    //     }
-    //     return this.getHead(this.ctx);
-    // }
-
-
-    public boolean getHead(ByteBuffer targetCtx){
-        if (targetCtx.get() == Head.HEAD_1.CODE && targetCtx.get() == Head.HEAD_2.CODE) {
-            targetCtx.put(targetCtx.position() - 1, (byte) 0);
-
-            this.type = targetCtx.get();
-
-            byte[] lengBytes = new byte[Head.SIZE.LENG];
-            targetCtx.get(lengBytes, 0, Head.SIZE.LENG);
-            this.dataLimit = ByteBuffer.wrap(lengBytes).getInt();
-
-            this.limit = this.dataLimit + Head.INFO.LENG;
-            this.nextPosition += this.limit;
-            this.leng = 0;
-            return true;
-        }
-        return false;
-    }
-
     private boolean partOfHeadHelper(SocketChannel socketChannel) {
-        while(this.headCtx.hasRemaining() && this.ctx.hasRemaining()){
+        while (this.headCtx.hasRemaining() && this.ctx.hasRemaining()) {
             this.headCtx.put(this.ctx.get());
         }
         if (!this.ctx.hasRemaining()) {
-           return this.fetchHead(socketChannel);
+            System.out.println("fetchHead");
+            return this.fetchHead(socketChannel);
         }
-        if(!this.headCtx.hasRemaining()){
+        if (!this.headCtx.hasRemaining()) {
+            System.out.println("headCtx");
             this.headCtx.flip();
             boolean state = this.getHead(this.headCtx);
             this.headCtx.clear();
@@ -107,13 +84,60 @@ public class Parser {
         return false;
     }
 
-    public void fetch(SocketChannel socketChannel){
-        this.fetch(socketChannel, this);
+    private boolean getHead(SocketChannel socketChannel) {
+        if (this.ctx.remaining() <= Head.INFO.LENG || this.headCtx.position() != 0) {
+            System.out.println("get Head by split way");
+            return this.partOfHeadHelper(socketChannel); // 小於可解析之長度
+        }
+        System.out.println("get Head");
+        return this.getHead(this.ctx);
     }
 
-    public void fetch(SocketChannel socketChannel, Parser actParser) {
+    public boolean getHead(ByteBuffer targetCtx) {
+        System.out.println("ps >> " + targetCtx.position());
+        if (targetCtx.get() == Head.HEAD_1.CODE && targetCtx.get() == Head.HEAD_2.CODE) {
+            byte unknownPrefix = targetCtx.get(); // maybe Head.HEAD_NULL.CODE
+            targetCtx.put(targetCtx.position() - 2, (byte) -1);
+
+            byte type = targetCtx.get();
+
+            if (unknownPrefix == Head.HEAD_3.CODE) {
+                this.type = type;
+                this.breakPointCount = (int) targetCtx.get();
+                // this.breakPointCount++; // self count
+                this.dataLimit = 0;
+                this.limit = this.dataLimit + Head.COUNT_INFO.LENG;
+                this.leng = 0;
+                this.nextPosition += this.limit;
+                this.bindingSkipped = false;
+                return true;
+            }
+
+            if (this.verifySameType && this.type != 0 && type != this.type) {
+                this.type = type;
+                return false;
+            }
+            this.type = type;
+            byte[] lengBytes = new byte[Head.SIZE.LENG];
+            targetCtx.get(lengBytes, 0, Head.SIZE.LENG);
+            this.dataLimit = ByteBuffer.wrap(lengBytes).getInt();
+
+            this.limit = this.dataLimit + Head.INFO.LENG;
+            this.leng = 0;
+            this.nextPosition += this.limit;
+            return true;
+        }
+        return false;
+    }
+
+    public void fetch(SocketChannel socketChannel, Parser evtSelf) {
+        this.evtSelf = evtSelf;
+        this.fetch(socketChannel);
+    }
+
+    public void fetch(SocketChannel socketChannel) {
         try {
-            while (this.reachHandler(socketChannel, actParser)) {
+            while (this.reachHandler(socketChannel, this.evtSelf == null ? this : this.evtSelf)) {
                 this.ctx.clear();
                 this.readableLeng = socketChannel.read(this.ctx);
                 if (this.readableLeng == -1) {
@@ -126,7 +150,7 @@ public class Parser {
         }
     }
 
-    private boolean reachHandler(SocketChannel socketChannel, Parser actParser) {
+    private boolean reachHandler(SocketChannel socketChannel, Parser evtSelf) {
         if (this.readableLeng == 0) {
             return true;
         }
@@ -134,25 +158,34 @@ public class Parser {
         int originLimit = this.ctx.limit();
         this.leng += this.ctx.remaining();
 
+        if (!this.bindingSkipped) {
+            this.bindingSkipped = true;
+            return !this.tryNext(socketChannel);
+        }
+
         int blockLimit = this.nextPosition > this.readableLeng ? this.readableLeng : this.nextPosition;
         this.ctx.limit(blockLimit);
-        // debug.packager.Parser pdebug = new debug.packager.Parser(this);
-        // pdebug.log();
-        actParser.get(this);
+        //todo
+                debug.packager.Parser p = new debug.packager.Parser(this);
+                p.log();
+                p.log2();
+        evtSelf.get(this);
 
         if (this.isBreakPoint()) {
             this.ctx.position(originPosition);
-            actParser.breakPoint(this);
+            evtSelf.breakPoint(this);
 
             this.ctx.position(originPosition);
             this.ctx.limit(originLimit);
-            if (this.tryNext(socketChannel, actParser)) {
+            if (this.tryNext(socketChannel)) {
                 return false;
             }
             this.isFinish = true;
-            this.ctx.limit(blockLimit);
-            actParser.finish(this);
-            return false;
+            if (this.isFinish()) {
+                this.ctx.limit(blockLimit);
+                evtSelf.finish(this);
+                return false;
+            }
         }
 
         this.ctx.position(originPosition);
@@ -160,15 +193,18 @@ public class Parser {
         return true;
     }
 
-    private boolean tryNext(SocketChannel socketChannel, Parser actParser) {
+    private boolean tryNext(SocketChannel socketChannel) {
         int originPosition = this.ctx.position();
+        System.out.println(this.nextPosition > this.readableLeng);
         if (this.nextPosition > this.readableLeng) {
-            return false;
+            this.ctx.position(this.ctx.limit());
+        }else{
+            this.ctx.position(this.nextPosition);
         }
-        this.ctx.position(this.nextPosition);
         if (this.getHead(socketChannel)) {
             if (this.proceeding) {
-                this.fetch(socketChannel, actParser);
+                this.breakPointCount--;
+                this.fetch(socketChannel);
             }
             return true;
         }
@@ -181,12 +217,16 @@ public class Parser {
         this.proceeding = proceeding;
     }
 
+    public void setVerifySameType(boolean verifySameType) {
+        this.verifySameType = verifySameType;
+    }
+
     public boolean isBreakPoint() {
         return this.leng >= this.dataLimit;
     }
 
     public boolean isFinish() {
-        return this.isFinish;
+        return this.isFinish && this.breakPointCount <= 0;
     }
 
     public byte[] getBytes() {

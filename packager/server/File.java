@@ -13,95 +13,111 @@ public class File {
     // public static String fileName = null;
     // public static long fileSize = 0;
 
-
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
-        pkg.setProceeding(true);
 
-        Parser evtPkg = new Parser() {
-            public String fileName = null;
-            public long fileSize;
-            public Packager cPkg = new Packager(1024);
-            public String keyName = key.getName(targetKey);
+        if (pkg.evtSelf == null) {
+            System.out.println("file method created");
+            Packager cPkg = new Packager(4096);
+            cPkg.bind(State.FILE, 3);
 
-            @Override
-            public void breakPoint(Parser self) {
-                try {
-                    debug.packager.Parser p = new debug.packager.Parser(self);
-                    p.log();
-                    if (fileName != null && fileSize != 0) {
-                        return;
+            pkg.setProceeding(true);
+            Parser evt = new Parser() {
+                public String fileName = null;
+                public long fileSize;
+                public String keyName = key.getName(targetKey);
+
+                @Override
+                public void breakPoint(Parser self) {
+                    try {
+                        if (fileName != null && fileSize != 0) {
+                            return;
+                        }
+                        byte[] stuffBytes = self.getBytes();
+
+                        out.print("[" + socketChannel.getRemoteAddress().toString() + "] ");
+
+                        if (fileName == null) {
+                            fileName = new String(stuffBytes);
+                            out.println("[檔案名稱] " + fileName);
+
+                            cPkg.write(stuffBytes);
+
+                        } else if (fileSize == 0) {
+                            fileSize = ByteBuffer.wrap(stuffBytes).getLong();
+                            out.println("[檔案大小] " + fileSize);
+
+                            cPkg.proceed();
+                            cPkg.write(stuffBytes);
+                        }
+
+                        cPkg.ctx.flip();
+                        int originPosition = cPkg.ctx.position();
+                        int originLimit = cPkg.ctx.limit();
+                        key.emitOther(keyName, socketChannel, new Key() {
+                            @Override
+                            public void emitRun(SocketChannel targetSocketChannel) {
+                                try {
+                                    cPkg.ctx.position(originPosition);
+                                    cPkg.ctx.limit(originLimit);
+                                    targetSocketChannel.write(cPkg.ctx);
+                                } catch (Exception err) {
+                                    err.printStackTrace();
+                                }
+                            }
+                        });
+                        cPkg.ctx.clear();
+
+                        if(fileName != null && fileSize != 0){
+                            cPkg.proceed();
+                            cPkg.setHead(State.FILE, (int) fileSize);
+                            out.println("iiiiiiiiiii");
+                        }
+                    } catch (Exception err) {
+                        err.printStackTrace();
                     }
-                    // byte[] stuffBytes = self.getBytes();
-
-                    // cPkg.ctx.clear();
-                    // cPkg.setHead(State.FILE);
-                    // cPkg.write(stuffBytes);
-
-                    if (fileName == null) {
-                        fileName = "!!!";
-                    //     fileName = new String(stuffBytes);
-
-                    //     out.print("[" + socketChannel.getRemoteAddress().toString() + "] ");
-                    //     out.println("[檔案名稱] " + fileName);
-                    System.out.println(fileName);
-                        return;
-                    }
-
-                    // key.emitOther(keyName, socketChannel, new Key() {
-                    //     @Override
-                    //     public void emitRun(SocketChannel targetSocketChannel) {
-                    //         try {
-                    //             cPkg.ctx.position(0);
-                    //             targetSocketChannel.write(cPkg.ctx);
-                    //         } catch (Exception err) {
-                    //             err.printStackTrace();
-                    //         }
-                    //     }
-                    // });
-
-                    if (fileSize == 0) {
-                        fileSize = 1;
-                    //     fileSize = ByteBuffer.wrap(stuffBytes).getLong();
-
-                    //     out.print("[" + socketChannel.getRemoteAddress().toString() + "] ");
-                    //     out.println("[檔案大小] " + fileSize);
-
-                    //     // cPkg.proceed();
-                    //     // cPkg.setHead(State.FILE, (int) fileSize);
-                    System.out.println(fileSize);
-                    }
-                } catch (Exception err) {
-                    err.printStackTrace();
                 }
-            }
 
-            @Override
-            public void get(Parser self) {
-                // if (fileSize != 0) {
-                //     try {
-                //         byte[] stuffBytes = self.getBytes();
-                //         cPkg.write(stuffBytes);
+                @Override
+                public void get(Parser self) {
+                    if (fileSize != 0) {
+                        try {
+                            byte[] stuffBytes = self.getBytes();
 
-                //         key.emitOther(keyName, socketChannel, new Key() {
-                //             @Override
-                //             public void emitRun(SocketChannel targetSocketChannel) {
-                //                 try {
-                //                     cPkg.ctx.position(0);
-                //                     targetSocketChannel.write(cPkg.ctx);
-                //                 } catch (Exception err) {
-                //                     err.printStackTrace();
-                //                 }
-                //             }
-                //         });
+                            out.println("eeeeeeeeeeee");
+                            cPkg.write(stuffBytes);
+                            cPkg.ctx.flip();
+                            int originPosition = cPkg.ctx.position();
+                            int originLimit = cPkg.ctx.limit();
+                            key.emitOther(keyName, socketChannel, new Key() {
+                                @Override
+                                public void emitRun(SocketChannel targetSocketChannel) {
+                                    try {
+                                        cPkg.ctx.position(originPosition);
+                                        cPkg.ctx.limit(originLimit);
+                                        targetSocketChannel.write(cPkg.ctx);
+                                    } catch (Exception err) {
+                                        err.printStackTrace();
+                                    }
+                                }
+                            });
 
-                //         cPkg.ctx.clear();
-                //     } catch (Exception err) {
-                //         err.printStackTrace();
-                //     }
-                // }
-            }
-        };
-        pkg.fetch(socketChannel, evtPkg);
+                            cPkg.ctx.clear();
+                        } catch (Exception err) {
+                            err.printStackTrace();
+                        }
+                    }
+                }
+
+                @Override
+                public void finish(Parser self) {
+                    System.out.println("file method is going to destroy");
+                }
+            };
+            pkg.fetch(socketChannel, evt);
+        } else {
+            System.out.println("file method ...");
+            pkg.fetch(socketChannel);
+        }
 
         // out.println("[發送對象數] " + emitCount);
     }

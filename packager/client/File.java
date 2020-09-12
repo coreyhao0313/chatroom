@@ -43,37 +43,37 @@ public class File {
             FileInputStream FIS = new FileInputStream(path);
             BufferedInputStream BIS = new BufferedInputStream(FIS, 65536);
 
-            Packager pkgFileName = new Packager(512);
+            Packager sPkg = new Packager(1024);
+            sPkg.bind(State.FILE, 3);
+
             byte[] fileNameBytes = fileName.getBytes("UTF-8");
-            pkgFileName.setHead(State.FILE);
-            pkgFileName.write(fileNameBytes);
-            pkgFileName.sendTo(socketChannel);
+            sPkg.write(fileNameBytes);
+            sPkg.sendTo(socketChannel);
+            sPkg.proceed();
 
-            Packager pkgFileSize = new Packager(Long.BYTES + Head.INFO.LENG);
             byte[] fileSizeBytes = ByteBuffer.allocate(Long.BYTES).putLong(fileSize).array();
-            pkgFileSize.setHead(State.FILE);
-            pkgFileSize.write(fileSizeBytes);
-            pkgFileSize.sendTo(socketChannel);
+            sPkg.write(fileSizeBytes);
+            sPkg.sendTo(socketChannel);
+            sPkg.proceed();
 
-            Packager pkgFile = new Packager(4096);
-            pkgFile.setHead(State.FILE, (int)fileSize);
-            byte[] fileBytes = new byte[pkgFile.ctx.capacity() - Head.INFO.LENG];
+            sPkg.setHead(State.FILE, (int) fileSize);
+            byte[] fileBytes = new byte[sPkg.ctx.capacity() - Head.INFO.LENG];
 
             int fileByteLeng = BIS.read(fileBytes);
-            
+
             do {
-                if(fileBytes.length > fileByteLeng){
+                if (fileBytes.length > fileByteLeng) {
                     byte[] fileByteFinalLeng = new byte[fileByteLeng];
                     System.arraycopy(fileBytes, 0, fileByteFinalLeng, 0, fileByteLeng);
                     fileBytes = fileByteFinalLeng;
                 }
-                pkgFile.write(fileBytes);
-                pkgFile.sendTo(socketChannel);
+                sPkg.write(fileBytes);
+                sPkg.sendTo(socketChannel);
 
                 this.uploadSize += fileByteLeng;
                 out.println(this.uploadSize + " / " + this.uploadTotalSize);
 
-                fileBytes = new byte[pkgFile.ctx.capacity()];
+                fileBytes = new byte[sPkg.ctx.capacity()];
             } while ((fileByteLeng = BIS.read(fileBytes)) != -1);
 
             BIS.close();
@@ -89,59 +89,85 @@ public class File {
 
     public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
 
-        pkg.setProceeding(false);
-        pkg.fetch(socketChannel, new Parser() {
-            @Override
-            public void breakPoint(Parser self) {
-                byte[] stuffBytes = self.getBytes();
-                self.ctx.get(stuffBytes);
-                
-                if (downloadName == null) {
-                    downloadName = new String(stuffBytes);
-                    out.println("[接收檔案名稱] " + downloadName);
+        if (pkg.evtSelf == null) {
+            System.out.println("file method created");
 
-                } else if (downloadTotalSize == 0) {
-                    downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
-                    out.println("[接收檔案大小] " + downloadTotalSize);
+            pkg.setProceeding(true);
 
-                    out.println("[建檔階段]");
-                    try {
-                        FOS = new FileOutputStream("./files/" + downloadName);
-                        BOS = new BufferedOutputStream(FOS, 65536);
-                    } catch (Exception err){
-                        err.printStackTrace();
+            Parser evt = new Parser() {
+                @Override
+                public void breakPoint(Parser self) {
+                    if (downloadName != null && downloadTotalSize != 0) {
+                        return;
                     }
-                }
-            }
+                    // debug.packager.Parser p = new debug.packager.Parser(self);
+                    // p.log();
+                    // byte[] stuffBytes = self.getBytes();
+                    // out.println();
+                    // for(byte b : stuffBytes){
+                    //     out.print(b + " ");
+                    // }
+                    // out.println("~~~~~~~~~~~~~~~~~~~");
+                    // out.println();
+                    // out.println(stuffBytes.length);
 
-            @Override
-            public void get(Parser self) {
-                if(BOS != null){
-                    byte[] fileBytes = self.getBytes();
-                    self.ctx.get(fileBytes);
+                    // if (downloadName == null) {
+                    //     downloadName = new String(stuffBytes);
+                    //     out.println("[接收檔案名稱] " + downloadName);
 
-                    try {
-                        BOS.write(fileBytes);
-                        downloadSize += fileBytes.length;
-                        out.println(downloadSize + " / " + downloadTotalSize);
-                    } catch (Exception err){
-                        err.printStackTrace();
-                    }
-                }
-            }
+                    // } else if (downloadTotalSize == 0) {
+                    //     downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
+                    //     out.println("[接收檔案大小] " + downloadTotalSize);
 
-            @Override
-            public void finish(Parser self) {
-                if(BOS != null){
-                    try{
-                        out.println("[下載完成]");
-                        BOS.close();
-                    } catch(Exception err){
-                        err.printStackTrace();
-                    }
+                    //     out.println("[建檔階段]");
+                    //     try {
+                    //         FOS = new FileOutputStream("./files/" + downloadName);
+                    //         BOS = new BufferedOutputStream(FOS, 65536);
+                    //     } catch (Exception err) {
+                    //         err.printStackTrace();
+                    //     }
+                    // }
                 }
-            }
-        });
+
+                // @Override
+                // public void get(Parser self) {
+                //     if (BOS != null) {
+                //         byte[] fileBytes = self.getBytes();
+
+                //         try {
+                //             BOS.write(fileBytes);
+                //             downloadSize += fileBytes.length;
+                //             out.println(downloadSize + " / " + downloadTotalSize);
+                //         } catch (Exception err) {
+                //             err.printStackTrace();
+                //         }
+                //     }
+                // }
+
+                // @Override
+                // public void finish(Parser self) {
+                //     if (BOS != null) {
+                //         try {
+                //             out.println("[下載完成]");
+                //             BOS.close();
+                //         } catch (Exception err) {
+                //             err.printStackTrace();
+                //         }
+                //     }
+                // }
+
+                // @Override
+                // public void get(Parser self){
+                // debug.packager.Parser p = new debug.packager.Parser(self);
+                // p.log();
+                // }
+            };
+
+            pkg.fetch(socketChannel, evt);
+        } else {
+            System.out.println("file method ...");
+            pkg.fetch(socketChannel);
+        }
         return;
     }
 }

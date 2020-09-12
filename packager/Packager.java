@@ -9,6 +9,7 @@ import base.packager.Head;
 public class Packager {
     public ByteBuffer ctx;
     public byte[] prefixBytes = new byte[Head.PREFIX.LENG];
+    public byte[] typeBytes = new byte[Head.TYPE.LENG];
     public boolean wroteHead = false;
 
     public Packager(int capacity) {
@@ -22,12 +23,19 @@ public class Packager {
         this.ctx = ByteBuffer.allocate(4096);
     }
 
-    public void setHead(State state) {
+    public void setHead(Head head, State state) {
         this.prefixBytes[0] = Head.HEAD_1.CODE;
         this.prefixBytes[1] = Head.HEAD_2.CODE;
-        this.prefixBytes[2] = state.CODE;
+        this.prefixBytes[2] = head.CODE;
+
+        this.typeBytes[0] = state.CODE;
 
         this.ctx.put(this.prefixBytes);
+        this.ctx.put(this.typeBytes);
+    }
+
+    public void setHead(State state) {
+        this.setHead(Head.HEAD_NULL, state);
     }
 
     public void setHead(int length) {
@@ -44,8 +52,10 @@ public class Packager {
 
     public void write(byte[] data) throws Exception {
         if (!this.wroteHead) {
-            if (this.ctx.position() < Head.PREFIX.LENG) {
-                throw new Error("必須先定義前綴");
+            if (this.ctx.position() < Head.PREFIX.LENG + Head.TYPE.LENG) {
+                this.prefixBytes[2] = Head.HEAD_NULL.CODE;
+                this.ctx.put(this.prefixBytes);
+                this.ctx.put(this.typeBytes);
             }
             this.setHead(data.length);
             this.wroteHead = true;
@@ -64,6 +74,16 @@ public class Packager {
 
     public void proceed(){
         this.wroteHead = false;
+    }
+
+    public void bind(State state, int count){
+        this.setHead(Head.HEAD_3, state);
+
+        byte[] bindingInfoBytes = new byte[Head.BINDING.LENG];
+        bindingInfoBytes[0] = (byte)count;
+        this.ctx.put(bindingInfoBytes);
+
+        this.setHead(state);
     }
 
     // public static void sendEnd(SocketChannel socketChannel) throws Exception {
