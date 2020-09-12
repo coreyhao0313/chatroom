@@ -150,6 +150,7 @@ public class Chat implements CsocketClient {
         if (this.myPackage == null) {
             this.myPackage = new Parser(2048);
             this.myPackage.fetchHead(socketChannel);
+            System.out.println('x');
         }
         Parser pkg = this.myPackage;
 
@@ -184,6 +185,7 @@ public class Chat implements CsocketClient {
         } finally {
             if (pkg.isFinish()) {
                 this.myPackage = null;
+                System.out.println('y');
             }
         }
         return pkg.readableLeng;

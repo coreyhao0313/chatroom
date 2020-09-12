@@ -10,9 +10,6 @@ import packager.Parser;
 import packager.Packager;
 
 public class File {
-    // public static String fileName = null;
-    // public static long fileSize = 0;
-
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
 
         if (pkg.evtSelf == null) {
@@ -70,7 +67,6 @@ public class File {
                         if(fileName != null && fileSize != 0){
                             cPkg.proceed();
                             cPkg.setHead(State.FILE, (int) fileSize);
-                            out.println("iiiiiiiiiii");
                         }
                     } catch (Exception err) {
                         err.printStackTrace();
@@ -83,7 +79,6 @@ public class File {
                         try {
                             byte[] stuffBytes = self.getBytes();
 
-                            out.println("eeeeeeeeeeee");
                             cPkg.write(stuffBytes);
                             cPkg.ctx.flip();
                             int originPosition = cPkg.ctx.position();
@@ -113,6 +108,7 @@ public class File {
                     System.out.println("file method is going to destroy");
                 }
             };
+
             pkg.fetch(socketChannel, evt);
         } else {
             System.out.println("file method ...");

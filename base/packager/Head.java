@@ -6,7 +6,7 @@ public enum Head {
     SIZE(4, (byte) 0x00),
     INFO(3 + 1 + 4, (byte) 0x00), // PREFIX.LENG(HEAD_1 + HEAD_2 + NULL) + TYPE.LENG + SIZE.LENG
     BINDING(1, (byte) 0x00), // COUNT
-    COUNT_INFO(3 + 1 + 1, (byte) 0x00), // PREFIX.LENG(HEAD_1 + HEAD_2 + HEAD_3) + TYPE.LENG + BINDING.LENG(COUNT)
+    BINDING_INFO(3 + 1 + 1, (byte) 0x00), // PREFIX.LENG(HEAD_1 + HEAD_2 + HEAD_3) + TYPE.LENG + BINDING.LENG(COUNT)
 
     HEAD_NULL(0, (byte) 0),
     HEAD_1(0, (byte) 63),

@@ -80,7 +80,7 @@ public class Center implements CsocketServer {
             SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
 
             // if (socketChannel.isConnectionPending()) {
-            //     socketChannel.finishConnect(); // padding on connection
+            // socketChannel.finishConnect(); // padding on connection
             // }
             socketChannel.configureBlocking(false);
             socketChannel.register(selector, selectionKey.OP_READ);
@@ -115,8 +115,8 @@ public class Center implements CsocketServer {
 
     public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
         Parser pkg;
-        if((pkg = this.targetPackages.get(targetKey)) == null){
-            pkg = new Parser(4096);
+        if ((pkg = this.targetPackages.get(targetKey)) == null) {
+            pkg = new Parser(2048);
             this.targetPackages.put(targetKey, pkg);
 
             pkg.setVerifySameType(true);
@@ -140,7 +140,8 @@ public class Center implements CsocketServer {
 
                 case 0x0B:
                     // String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
-                    // Message.handle(byteBuffer, socketChannel, targetKey, this.key, clientRemoteAddress);
+                    // Message.handle(byteBuffer, socketChannel, targetKey, this.key,
+                    // clientRemoteAddress);
                     break;
 
                 case 0x0C:
@@ -153,9 +154,9 @@ public class Center implements CsocketServer {
         } catch (Exception err) {
             err.printStackTrace();
         } finally {
-            if(pkg.isFinish()){
-                System.out.println('y');
+            if (pkg.isFinish()) {
                 targetPackages.remove(targetKey);
+                System.out.println('y');
             }
         }
         return pkg.readableLeng;

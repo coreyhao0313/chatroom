@@ -100,66 +100,78 @@ public class File {
                     if (downloadName != null && downloadTotalSize != 0) {
                         return;
                     }
-                    // debug.packager.Parser p = new debug.packager.Parser(self);
-                    // p.log();
-                    // byte[] stuffBytes = self.getBytes();
-                    // out.println();
-                    // for(byte b : stuffBytes){
-                    //     out.print(b + " ");
-                    // }
-                    // out.println("~~~~~~~~~~~~~~~~~~~");
-                    // out.println();
-                    // out.println(stuffBytes.length);
+                    byte[] stuffBytes = self.getBytes();
 
-                    // if (downloadName == null) {
-                    //     downloadName = new String(stuffBytes);
-                    //     out.println("[接收檔案名稱] " + downloadName);
+                    System.out.println(self.ctx.limit() - self.ctx.position());
+                    System.out.println();
+                    for (byte t : stuffBytes) {
+                        System.out.print(t + " ");
+                    }
+                    System.out.println();
+                    System.out.println();
 
-                    // } else if (downloadTotalSize == 0) {
-                    //     downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
-                    //     out.println("[接收檔案大小] " + downloadTotalSize);
+                    if (downloadName == null) {
+                        downloadName = new String(stuffBytes);
+                        out.println("[接收檔案名稱] " + downloadName);
+                    } else if (downloadTotalSize == 0) {
+                        
+                        downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
+                        out.println("[接收檔案大小] " + downloadTotalSize);
+                        out.println("[建檔階段]");
+                        try {
+                            FOS = new FileOutputStream("./files/" + downloadName);
+                            BOS = new BufferedOutputStream(FOS, 65536);
+                        } catch (Exception err) {
+                            err.printStackTrace();
+                        }
+                    }
+                }
 
-                    //     out.println("[建檔階段]");
-                    //     try {
-                    //         FOS = new FileOutputStream("./files/" + downloadName);
-                    //         BOS = new BufferedOutputStream(FOS, 65536);
-                    //     } catch (Exception err) {
-                    //         err.printStackTrace();
-                    //     }
-                    // }
+                @Override
+                public void get(Parser self) {
+                    if (BOS != null) {
+                        byte[] fileBytes = self.getBytes();
+
+                        try {
+                            BOS.write(fileBytes);
+                            downloadSize += fileBytes.length;
+                            out.println(downloadSize + " / " + downloadTotalSize);
+                        } catch (Exception err) {
+                            err.printStackTrace();
+                        }
+                    }
+                }
+
+                @Override
+                public void finish(Parser self) {
+                    if (BOS != null) {
+                        try {
+                            out.println("[下載完成]");
+                            BOS.close();
+                        } catch (Exception err) {
+                            err.printStackTrace();
+                        } finally {
+                            downloadName = null;
+                            downloadSize = 0;
+                            downloadTotalSize = 0;
+                        }
+                    }
                 }
 
                 // @Override
                 // public void get(Parser self) {
-                //     if (BOS != null) {
-                //         byte[] fileBytes = self.getBytes();
+                //     byte[] stuffBytes = self.getBytes();
 
-                //         try {
-                //             BOS.write(fileBytes);
-                //             downloadSize += fileBytes.length;
-                //             out.println(downloadSize + " / " + downloadTotalSize);
-                //         } catch (Exception err) {
-                //             err.printStackTrace();
-                //         }
+                //     System.out.println();
+                //     System.out.println();
+                //     for (byte t : stuffBytes) {
+                //         System.out.print(t + " ");
                 //     }
-                // }
+                //     System.out.println();
+                //     System.out.println();
 
-                // @Override
-                // public void finish(Parser self) {
-                //     if (BOS != null) {
-                //         try {
-                //             out.println("[下載完成]");
-                //             BOS.close();
-                //         } catch (Exception err) {
-                //             err.printStackTrace();
-                //         }
-                //     }
-                // }
-
-                // @Override
-                // public void get(Parser self){
-                // debug.packager.Parser p = new debug.packager.Parser(self);
-                // p.log();
+                //     // debug.packager.Parser p = new debug.packager.Parser(self);
+                //     // p.log();
                 // }
             };
 
