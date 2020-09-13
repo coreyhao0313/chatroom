@@ -107,6 +107,12 @@ public class File {
                 public void finish(Parser self) {
                     System.out.println("file method is going to destroy");
                 }
+
+                // @Override
+                // public void get(Parser self){
+                //     debug.packager.Parser p = new debug.packager.Parser(self);
+                //     p.log();
+                // }
             };
 
             pkg.fetch(socketChannel, evt);

@@ -41,7 +41,7 @@ public class Parser {
         System.out.println("isBreakPoint() >>> " + parser.isBreakPoint());
         System.out.println("breakPointCount >>> " + parser.breakPointCount);
         System.out.println("``````");
-        System.out.println("this.isFinish >>> " + parser.isFinish);
+        // System.out.println("this.isFinish >>> " + parser.isFinish);
         System.out.println("this.isFinish() >>> " + parser.isFinish());
         System.out.println("``````");
         System.out.println("position() >> " + parser.ctx.position());

@@ -138,6 +138,11 @@ public class Parser {
     }
 
     private boolean reachHandler(Parser evtSelf) {
+        int blockLimit = this.nextPosition > this.readableLeng ? this.readableLeng : this.nextPosition;
+        if(blockLimit == 0){
+            return true;
+        }
+
         int originPosition = this.ctx.position();
         int originLimit = this.ctx.limit();
 
@@ -150,10 +155,6 @@ public class Parser {
             return isBreakPoint;
         }
 
-        int blockLimit = this.nextPosition > this.readableLeng ? this.readableLeng : this.nextPosition;
-        if(blockLimit == 0){
-            this.getHead();
-        }
         this.ctx.limit(blockLimit);
         evtSelf.get(this);
 

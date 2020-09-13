@@ -102,14 +102,6 @@ public class File {
                     }
                     byte[] stuffBytes = self.getBytes();
 
-                    System.out.println(self.ctx.limit() - self.ctx.position());
-                    System.out.println();
-                    for (byte t : stuffBytes) {
-                        System.out.print(t + " ");
-                    }
-                    System.out.println();
-                    System.out.println();
-
                     if (downloadName == null) {
                         downloadName = new String(stuffBytes);
                         out.println("[接收檔案名稱] " + downloadName);
@@ -160,15 +152,15 @@ public class File {
 
                 // @Override
                 // public void get(Parser self) {
-                //     byte[] stuffBytes = self.getBytes();
+                //     // byte[] stuffBytes = self.getBytes();
 
-                //     System.out.println();
-                //     System.out.println();
-                //     for (byte t : stuffBytes) {
-                //         System.out.print(t + " ");
-                //     }
-                //     System.out.println();
-                //     System.out.println();
+                //     // System.out.println();
+                //     // System.out.println();
+                //     // for (byte t : stuffBytes) {
+                //     //     System.out.print(t + " ");
+                //     // }
+                //     // System.out.println();
+                //     // System.out.println();
 
                 //     // debug.packager.Parser p = new debug.packager.Parser(self);
                 //     // p.log();
