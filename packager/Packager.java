@@ -50,12 +50,16 @@ public class Packager {
         this.wroteHead = true;
     }
 
+    private void putDefaultHead (){
+        this.prefixBytes[2] = Head.HEAD_NULL.CODE;
+        this.ctx.put(this.prefixBytes);
+        this.ctx.put(this.typeBytes);
+    }
+
     public void write(byte[] data) throws Exception {
         if (!this.wroteHead) {
             if (this.ctx.position() < Head.PREFIX.LENG + Head.TYPE.LENG) {
-                this.prefixBytes[2] = Head.HEAD_NULL.CODE;
-                this.ctx.put(this.prefixBytes);
-                this.ctx.put(this.typeBytes);
+                this.putDefaultHead();
             }
             this.setHead(data.length);
             this.wroteHead = true;
@@ -72,8 +76,21 @@ public class Packager {
         this.ctx.clear();
     }
 
+    public void sendTo2(SocketChannel socketChannel) throws Exception {
+        this.ctx.flip();
+        // socketChannel.write(this.ctx);
+        debug.packager.Packager pdebug = new debug.packager.Packager(this);
+        pdebug.log();
+        this.ctx.clear();
+    }
+
     public void proceed(){
         this.wroteHead = false;
+    }
+    
+    public void breakPoint(){
+        this.putDefaultHead();
+        this.proceed();
     }
 
     public void bind(State state, int count){

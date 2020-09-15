@@ -30,8 +30,9 @@ public class File {
                             return;
                         }
                         byte[] stuffBytes = self.getBytes();
+                        String userFromInfo = socketChannel.getRemoteAddress().toString();
 
-                        out.print("[" + socketChannel.getRemoteAddress().toString() + "] ");
+                        out.print("[" + userFromInfo + "] ");
 
                         if (fileName == null) {
                             fileName = new String(stuffBytes);

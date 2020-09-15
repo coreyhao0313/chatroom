@@ -120,8 +120,9 @@ public class Center implements CsocketServer {
             this.targetPackages.put(targetKey, pkg);
 
             pkg.setVerifySameType(true);
-            pkg.fetchHead(socketChannel);
-            System.out.println('x');
+            if (!pkg.fetchHead(socketChannel)) {
+                return pkg.readableLeng;
+            }
         }
 
         try {
@@ -139,9 +140,7 @@ public class Center implements CsocketServer {
                     break;
 
                 case 0x0B:
-                    // String clientRemoteAddress = socketChannel.getRemoteAddress().toString();
-                    // Message.handle(byteBuffer, socketChannel, targetKey, this.key,
-                    // clientRemoteAddress);
+                    Message.handle(pkg, socketChannel, targetKey, this.key);
                     break;
 
                 case 0x0C:
@@ -156,7 +155,6 @@ public class Center implements CsocketServer {
         } finally {
             if (pkg.isFinish()) {
                 targetPackages.remove(targetKey);
-                System.out.println('y');
             }
         }
         return pkg.readableLeng;

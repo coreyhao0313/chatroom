@@ -1,40 +1,55 @@
 package packager.client;
 
 import java.nio.channels.SocketChannel;
-import java.nio.ByteBuffer;
 
 import static java.lang.System.out;
 
 import base.State;
+import packager.Parser;
+import packager.Packager;
 
 public class Message {
 
     public static void send(SocketChannel socketChannel, String inputText) throws Exception {
-        byte[] OPBytes = { State.MESSAGE.CODE };
-        byte[] inputTextBytes = inputText.getBytes("UTF-8");
-        byte[] ctx = new byte[inputTextBytes.length + OPBytes.length];
+        byte[] textBytes = inputText.getBytes("UTF-8");
 
-        System.arraycopy(OPBytes, 0, ctx, 0, OPBytes.length);
-        System.arraycopy(inputTextBytes, 0, ctx, OPBytes.length, inputTextBytes.length);
-
-        socketChannel.write(ByteBuffer.wrap(ctx));
+        Packager sPkg = new Packager(1024);
+        sPkg.setHead(State.MESSAGE);
+        sPkg.write(textBytes);
+        sPkg.sendTo(socketChannel);
     }
 
-    public static void handle(ByteBuffer byteBuffer){
-        while (byteBuffer.get() != State.NOTHING.CODE)
-            ;
-        int breakpointOffset = byteBuffer.position();
+    public static void handle(Parser pkg, SocketChannel socketChannel) {
+        if (pkg.evtSelf == null) {
+            pkg.setProceeding(true);
+            Parser evt = new Parser() {
+                public String user;
+                public String message;
 
-        byte[] clientInfoBytes = new byte[breakpointOffset - 1];
-        byteBuffer.position(1);
-        byteBuffer.get(clientInfoBytes, 0, breakpointOffset - 1);
-        String clientInfo = new String(clientInfoBytes);
-        out.print("[" + clientInfo + "] ");
+                @Override
+                public void breakPoint(Parser parser) {
+                    if (this.user != null && this.message != null) {
+                        return;
+                    }
+                    byte[] stuffBytes = parser.getBytes();
+                    String stuffString = new String(stuffBytes);
 
-        int messageByteLeng = byteBuffer.remaining();
-        byte[] clientMessageBytes = new byte[messageByteLeng];
-        byteBuffer.get(clientMessageBytes, 0, messageByteLeng);
-        out.print(new String(clientMessageBytes));
-        out.println();
+                    if (this.user == null) {
+                        this.user = stuffString;
+                    } else if (this.message == null) {
+                        this.message = stuffString;
+                    }
+                }
+
+                @Override
+                public void finish(Parser parser) {
+                    out.print("[" + this.user + "] ");
+                    out.println(this.message);
+                }
+            };
+            pkg.fetch(socketChannel, evt);
+        } else {
+            pkg.fetch(socketChannel);
+        }
     }
 }

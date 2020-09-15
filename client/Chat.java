@@ -146,15 +146,18 @@ public class Chat implements CsocketClient {
     }
 
     public int dispatch(SocketChannel socketChannel) throws Exception {
-        if (this.myPackage == null) {
-            this.myPackage = new Parser(2048);
-            this.myPackage.fetchHead(socketChannel);
-            System.out.println('x');
-        }
         Parser pkg = this.myPackage;
 
+        if (pkg == null) {
+            this.myPackage = new Parser(2048);
+            pkg = this.myPackage;
+            if(!pkg.fetchHead(socketChannel)){
+                return pkg.readableLeng;
+            }
+        }
+
         try {
-            switch (myPackage.type) {
+            switch (pkg.type) {
                 case 0x00:
                     out.println(State.UNDEFINED.DESC);
                     break;
@@ -168,7 +171,7 @@ public class Chat implements CsocketClient {
                     break;
 
                 case 0x0B:
-                    // Message.handle(byteBuffer);
+                    Message.handle(pkg, socketChannel);
                     break;
 
                 case 0x0C:
@@ -184,7 +187,6 @@ public class Chat implements CsocketClient {
         } finally {
             if (pkg.isFinish()) {
                 this.myPackage = null;
-                System.out.println('y');
             }
         }
         return pkg.readableLeng;
