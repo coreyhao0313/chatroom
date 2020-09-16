@@ -17,7 +17,8 @@ public class Parser {
             parser.ctx.position(originPosition - Head.INFO.LENG);
         }
         System.out.println("readableLeng > " + parser.readableLeng + ", ctx.remaining() > " + parser.ctx.remaining());
-        System.out.println("nextPosition > " + parser.nextPosition + ", limit > " + parser.limit);
+        // System.out.println("nextPosition > " + parser.nextPosition + ", limit > " + parser.limit);
+        System.out.println("limit > " + parser.limit);
         System.out.println("leng > " + parser.leng + ", dataLimit > " + parser.dataLimit);
         System.out.println("position() > " + parser.ctx.position() + ", limit() > " + parser.ctx.limit() + ", isBreakPoint > " + parser.isBreakPoint());
         System.out.println("isFinish() > " + parser.isFinish());
@@ -36,10 +37,10 @@ public class Parser {
 
     public void log2(){
         System.out.println("readableLeng >> " + parser.readableLeng);
-        System.out.println("nextPosition >> " + parser.nextPosition);
+        // System.out.println("nextPosition >> " + parser.nextPosition);
         System.out.println("limit >> " + parser.limit);
         System.out.println("isBreakPoint() >>> " + parser.isBreakPoint());
-        System.out.println("breakPointCount >>> " + parser.breakPointCount);
+        // System.out.println("breakPointCount >>> " + parser.breakPointCount);
         System.out.println("``````");
         // System.out.println("this.isFinish >>> " + parser.isFinish);
         System.out.println("this.isFinish() >>> " + parser.isFinish());

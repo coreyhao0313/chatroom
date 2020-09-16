@@ -147,7 +147,7 @@ public class Center implements CsocketServer {
                     File.handle(pkg, socketChannel, targetKey, this.key);
                     break;
                 case 0x0D:
-                    // Remote.handle(byteBuffer, socketChannel, targetKey, this.key);
+                    Remote.handle(pkg, socketChannel, targetKey, this.key);
                     break;
             }
         } catch (Exception err) {

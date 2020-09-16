@@ -22,6 +22,7 @@ public class File {
                 public String fileName = null;
                 public long fileSize;
                 public String keyName = key.getName(targetKey);
+                public String userFromInfo = socketChannel.getRemoteAddress().toString();
 
                 @Override
                 public void breakPoint(Parser self) {
@@ -30,9 +31,8 @@ public class File {
                             return;
                         }
                         byte[] stuffBytes = self.getBytes();
-                        String userFromInfo = socketChannel.getRemoteAddress().toString();
 
-                        out.print("[" + userFromInfo + "] ");
+                        out.print("[" + this.userFromInfo + "] ");
 
                         if (fileName == null) {
                             fileName = new String(stuffBytes);

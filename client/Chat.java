@@ -179,7 +179,7 @@ public class Chat implements CsocketClient {
                     break;
 
                 case 0x0D:
-                    // this.remote.handle(byteBuffer);
+                    this.remote.handle(pkg, socketChannel);
                     break;
             }
         } catch (Exception err) {

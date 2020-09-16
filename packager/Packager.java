@@ -76,14 +76,6 @@ public class Packager {
         this.ctx.clear();
     }
 
-    public void sendTo2(SocketChannel socketChannel) throws Exception {
-        this.ctx.flip();
-        // socketChannel.write(this.ctx);
-        debug.packager.Packager pdebug = new debug.packager.Packager(this);
-        pdebug.log();
-        this.ctx.clear();
-    }
-
     public void proceed(){
         this.wroteHead = false;
     }
@@ -102,11 +94,4 @@ public class Packager {
 
         this.setHead(state);
     }
-
-    // public static void sendEnd(SocketChannel socketChannel) throws Exception {
-    // byte[] endBytes = new byte[1];
-    // endBytes[0] = (byte)0xFF;
-
-    // socketChannel.write(ByteBuffer.wrap(endBytes));
-    // }
 }

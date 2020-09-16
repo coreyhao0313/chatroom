@@ -1,13 +1,14 @@
 package packager.client;
 
 import java.nio.channels.SocketChannel;
-import java.nio.ByteBuffer;
 import java.awt.Robot;
 
 import static java.lang.System.out;
 
 import base.State;
 import client.Keyboard;
+import packager.Parser;
+import packager.Packager;
 
 public class Remote {
     public Robot robot;
@@ -22,35 +23,27 @@ public class Remote {
     }
 
     public void setKeyboardSender(SocketChannel socketChannel) {
-        byte[] OPBytes = { State.REMOTE.CODE };
-        ByteBuffer ctx = ByteBuffer.allocate(8);
-        byte[] keyBoardTypeBytes = new byte[1];
-        byte[] keyboardByteLeng = new byte[1];
+        Packager sPkg = new Packager(1024);
+        sPkg.bind(State.REMOTE, 2);
 
         Keyboard keyboard = new Keyboard() {
-            public void keyHandler(java.awt.event.KeyEvent evt, byte keyboardType) {
+            public byte[] keyboardStateBytes = new byte[1];
+
+            public void keyHandler(java.awt.event.KeyEvent evt, byte keyboardState) {
                 int keyboardInt = evt.getKeyCode();
                 evt.consume();
-                byte[] keyboardBytes = String.valueOf(keyboardInt).getBytes();
+                byte[] keyboardStrBytes = String.valueOf(keyboardInt).getBytes();
+                keyboardStateBytes[0] = keyboardState;
                 this.text.setText("");
 
-                ctx.put(OPBytes);
-
-                keyBoardTypeBytes[0] = keyboardType;
-                ctx.put(keyBoardTypeBytes);
-
-                keyboardByteLeng[0] = (byte) keyboardBytes.length;
-                ctx.put(keyboardByteLeng);
-
-                ctx.put(keyboardBytes);
-
-                ctx.flip();
-                try {
-                    socketChannel.write(ctx);
-                } catch (Exception err) {
-                    out.println("[按鍵傳輸失敗]");
-                } finally {
-                    ctx.clear();
+                try{
+                    sPkg.write(keyboardStrBytes);
+                    sPkg.breakPoint();
+                    sPkg.write(keyboardStateBytes);
+                    sPkg.sendTo(socketChannel);
+                    sPkg.proceed();
+                }catch (Exception err){
+                    err.printStackTrace();
                 }
             }
 
@@ -67,32 +60,46 @@ public class Remote {
         keyboard.setInputListener();
     }
 
-    public void handle(ByteBuffer byteBuffer) {
+    public void handle(Parser pkg, SocketChannel socketChannel) {
         if (this.robot == null) {
             out.println("[未被允許操控之傳輸]");
             return;
         }
-        byte keyboardType = byteBuffer.get();
-        byte keyboardByteLeng = byteBuffer.get();
-        byte[] remoteKeyStr = new byte[keyboardByteLeng];
+        if(pkg.evtSelf == null){
+            pkg.setProceeding(true);
+            Parser evt = new Parser(){
+                public Integer keyboardCode;
+                public byte keyboardState;
 
-        byteBuffer.get(remoteKeyStr, 0, keyboardByteLeng);
-        int keyCode = Integer.parseInt(new String(remoteKeyStr));
-        // out.println("[keyCode] " + keyCode);
-
-        if (keyCode == 0) {
-            return;
-        }
-        switch (keyboardType) {
-            case 1:
-                this.robot.keyPress(keyCode);
-                out.println("keyPress: " + keyCode);
-                break;
-
-            case 2:
-                this.robot.keyRelease(keyCode);
-                out.println("keyRelease: " + keyCode);
-                break;
+                public void breakPoint(Parser self){
+                    if(this.keyboardCode == null){
+                        byte[] stuffBytes = self.getBytes();
+                        String stuffString = new String(stuffBytes);
+                        this.keyboardCode = Integer.parseInt(stuffString);
+                    } else if(this.keyboardState == 0){
+                        this.keyboardState = self.ctx.get();
+                    }
+                }
+                public void finish(Parser self){
+                    if (this.keyboardCode == 0 || this.keyboardCode == null) {
+                        return;
+                    }
+                    switch (this.keyboardState) {
+                        case 1:
+                            robot.keyPress(this.keyboardCode);
+                            out.println("keyPress: " + this.keyboardCode);
+                            break;
+            
+                        case 2:
+                            robot.keyRelease(this.keyboardCode);
+                            out.println("keyRelease: " + this.keyboardCode);
+                            break;
+                    }
+                }
+            };
+            pkg.fetch(socketChannel, evt);
+        }else{
+            pkg.fetch(socketChannel);
         }
     }
 }

@@ -10,12 +10,14 @@ public class Parser {
     private ByteBuffer headCtx;
     private boolean bindingSkipped = true;
     private boolean verifySameType = false;
-    // todo
-    public int breakPointCount = 0;
-    public boolean proceeding = false;
-    public int nextPosition = 0;
-    // private boolean proceeding = false;
-    // private int nextPosition = 0;
+    // debug
+    // public int breakPointCount = 0;
+    // public boolean proceeding = false;
+    // public int nextPosition = 0;
+    private int breakPointCount = 0;
+    private boolean proceeding = false;
+    private int nextPosition = 0;
+    // --
     public int readableLeng = 0;
     public int dataLimit = 0;
     public int limit = 0;

@@ -1,46 +1,68 @@
 package packager.server;
 
-import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import static java.lang.System.out;
 
+import base.State;
+import packager.Parser;
+import packager.Packager;
+
 public class Remote {
-    public final static short REMOTE_LENG = 8;
-    public final static short OFFSET_LENG = 3;
-    public final static short OFFSET_INDEX = 2;
-    public static void handle(ByteBuffer byteBuffer, SocketChannel socketChannel, Integer targetKey, Key key)
-            throws Exception {
-        short keycodeLeng = byteBuffer.get(OFFSET_INDEX);
-        int remoteRemaining = byteBuffer.remaining();
-        byteBuffer.position(0);
+    public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
 
-        while ((remoteRemaining = byteBuffer.remaining()) >= keycodeLeng + OFFSET_LENG) {
-            byte[] remoteBytes = new byte[REMOTE_LENG];
-            byteBuffer.get(remoteBytes, 0, OFFSET_LENG + keycodeLeng);
-            ByteBuffer ctx = ByteBuffer.wrap(remoteBytes);
+        if (pkg.evtSelf == null) {
+            Packager cPkg = new Packager(1024);
+            cPkg.bind(State.REMOTE, 2);
 
-            String keyName = key.getName(targetKey);
+            pkg.setProceeding(true);
+            Parser evt = new Parser() {
+                public Integer keyboardCode;
+                public byte keyboardState;
+                public String keyName = key.getName(targetKey);
+                public String userFromInfo = socketChannel.getRemoteAddress().toString();
 
-            // out.println("[" + clientRemoteAddress + "/" + key + "/傳輸控制訊息] ");
-
-            key.emitOther(keyName, socketChannel, new Key() {
                 @Override
-                public void emitRun(SocketChannel targetSocketChannel) {
+                public void breakPoint(Parser self) {
+                    byte[] stuffBytes = self.getBytes();
                     try {
-                        targetSocketChannel.write(ctx);
-                    } catch (Exception err) {
-                        out.println("[對象發送失敗]");
+                        cPkg.write(stuffBytes);
+
+                        if (this.keyboardCode == null) {
+                            cPkg.breakPoint();
+                            String stuffString = new String(stuffBytes);
+                            this.keyboardCode = Integer.parseInt(stuffString);
+                        } else if (this.keyboardState == 0) {
+                            this.keyboardState = stuffBytes[0];
+                        }
+                    } catch(Exception err){
+                        err.printStackTrace();
                     }
                 }
-            });
-            // out.println("[發送對象數] " + (keySocketChannels.size() - 1));
 
-            byteBuffer.compact();
-            byteBuffer.flip();
-            if (byteBuffer.remaining() > OFFSET_LENG) {
-                keycodeLeng = byteBuffer.get(OFFSET_INDEX);
-            }
+                public void finish(Parser self) {
+                    cPkg.ctx.flip();
+                    int originPosition = cPkg.ctx.position();
+                    int originLimit = cPkg.ctx.limit();
+                    int emitCount = key.emitOther(this.keyName, socketChannel, new Key() {
+                        @Override
+                        public void emitRun(SocketChannel targetSocketChannel) {
+                            try {
+                                cPkg.ctx.position(originPosition);
+                                cPkg.ctx.limit(originLimit);
+                                targetSocketChannel.write(cPkg.ctx);
+                            } catch (Exception err) {
+                                err.printStackTrace();
+                            }
+                        }
+                    });
+                    out.println("[" + this.userFromInfo + "/傳輸控制訊號] " + keyboardState + " >> " + this.keyboardCode);
+                    out.println("[發送對象數] " + emitCount);
+                }
+            };
+            pkg.fetch(socketChannel, evt);
+        } else {
+            pkg.fetch(socketChannel);
         }
     }
 }
