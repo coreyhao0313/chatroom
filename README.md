@@ -59,7 +59,7 @@ java -Dfile.encoding=UTF-8 Online -c 127.0.0.1 3000
 /remote me
 ```
 
-##### 2. 檔案傳輸
+###### 2. 檔案傳輸
 
 ```
 /file <File Path>
