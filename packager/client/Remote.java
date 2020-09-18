@@ -11,12 +11,12 @@ import client.Keyboard;
 import packager.Parser;
 import packager.Packager;
 
-public class Remote implements ParserEvent{
+public class Remote implements ParserEvent {
     public Robot robot;
     public Integer keyboardCode;
     public byte keyboardState;
 
-    public void setOutputController(){
+    public void setOutputController() {
         try {
             this.robot = new Robot();
             out.println("[允許作為受控端]");
@@ -39,13 +39,13 @@ public class Remote implements ParserEvent{
                 keyboardStateBytes[0] = keyboardState;
                 this.text.setText("");
 
-                try{
+                try {
                     sPkg.write(keyboardStrBytes);
                     sPkg.breakPoint();
                     sPkg.write(keyboardStateBytes);
                     sPkg.sendTo(socketChannel);
                     sPkg.proceed();
-                }catch (Exception err){
+                } catch (Exception err) {
                     err.printStackTrace();
                 }
             }
@@ -65,15 +65,15 @@ public class Remote implements ParserEvent{
 
     public void handle(Parser pkg, SocketChannel socketChannel) {
         if (this.robot == null) {
-            out.println("[未被允許操控之傳輸]");
             return;
         }
-        if(pkg.parserEvent == null){
+        if (pkg.parserEvent == null) {
             pkg.setProceeding(true);
 
             Remote receiver = this;
+            receiver.resetRemote();
             pkg.fetch(socketChannel, receiver);
-        }else{
+        } else {
             pkg.fetch(socketChannel);
         }
     }
@@ -84,18 +84,18 @@ public class Remote implements ParserEvent{
     }
 
     @Override
-    public void breakPoint(Parser self){
-        if(this.keyboardCode == null){
+    public void breakPoint(Parser self) {
+        if (this.keyboardCode == null) {
             byte[] stuffBytes = self.getBytes();
             String stuffString = new String(stuffBytes);
             this.keyboardCode = Integer.parseInt(stuffString);
-        } else if(this.keyboardState == 0){
+        } else if (this.keyboardState == 0) {
             this.keyboardState = self.ctx.get();
         }
     }
-    
+
     @Override
-    public void finish(Parser self){
+    public void finish(Parser self) {
         if (this.keyboardCode == 0 || this.keyboardCode == null) {
             return;
         }
@@ -105,14 +105,19 @@ public class Remote implements ParserEvent{
                     this.robot.keyPress(this.keyboardCode);
                     out.println("keyPress: " + this.keyboardCode);
                     break;
-    
+
                 case 2:
                     this.robot.keyRelease(this.keyboardCode);
                     out.println("keyRelease: " + this.keyboardCode);
                     break;
             }
         } catch (Exception err) {
-            out.println("不支援的 keycode");
+            out.println("不支援的 Keycode");
         }
+    }
+
+    public void resetRemote() {
+        this.keyboardCode = null;
+        this.keyboardState = 0;
     }
 }

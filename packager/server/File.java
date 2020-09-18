@@ -21,6 +21,7 @@ public class File implements ParserEvent, KeyEvent {
     public long fileSize;
     public int originPosition;
     public int originLimit;
+    public int fileLeng;
 
     public File(SocketChannel socketChannel, Integer targetKey, Key key) {
         try {
@@ -32,6 +33,7 @@ public class File implements ParserEvent, KeyEvent {
             this.socketChannel = socketChannel;
             this.remoteAddressString = socketChannel.getRemoteAddress().toString();
             this.fileName = null;
+            this.fileLeng = 0;
         } catch (Exception err) {
             err.printStackTrace();
         }
@@ -39,13 +41,11 @@ public class File implements ParserEvent, KeyEvent {
 
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
         if (pkg.parserEvent == null) {
-            System.out.println("file method created");
             pkg.setProceeding(true);
 
             File receiver = new File(socketChannel, targetKey, key);
             pkg.fetch(socketChannel, receiver);
         } else {
-            System.out.println("file method ...");
             pkg.fetch(socketChannel);
         }
         // out.println("[發送對象數] " + emitCount);
@@ -104,6 +104,7 @@ public class File implements ParserEvent, KeyEvent {
         if (this.fileSize != 0) {
             try {
                 byte[] stuffBytes = self.getBytes();
+                this.fileLeng += stuffBytes.length;
 
                 this.cPkg.write(stuffBytes);
                 this.cPkg.ctx.flip();
@@ -112,7 +113,8 @@ public class File implements ParserEvent, KeyEvent {
 
                 File sender = this;
                 this.key.emitOther(this.keyName, socketChannel, sender);
-
+                
+                out.printf("[%s/%s/傳檔] %d/%d\n", this.remoteAddressString, this.keyName, this.fileLeng, this.fileSize);
                 this.cPkg.ctx.clear();
             } catch (Exception err) {
                 err.printStackTrace();
@@ -122,7 +124,7 @@ public class File implements ParserEvent, KeyEvent {
 
     @Override
     public void finish(Parser self) {
-        System.out.println("file method is going to destroy");
+        out.println("[" + this.remoteAddressString + "/" + this.fileName + " 傳輸作業完成]");
     }
 
     public void everyOther(SocketChannel targetSocketChannel) {

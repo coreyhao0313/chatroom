@@ -19,6 +19,13 @@ import packager.Parser;
 import packager.Packager;
 
 public class File implements ParserEvent {
+    public FileInputStream FIS;
+    public BufferedInputStream BIS;
+
+    public String uploadName;
+    public long uploadTotalSize;
+    public long uploadSize;
+
     public FileOutputStream FOS;
     public BufferedOutputStream BOS;
 
@@ -26,23 +33,21 @@ public class File implements ParserEvent {
     public long downloadTotalSize;
     public long downloadSize;
 
-    public static void send(String path, SocketChannel socketChannel) {
-        long uploadTotalSize = 0;
-        long uploadSize = 0;
-
+    public void send(String path, SocketChannel socketChannel) {
         try {
             Path filePath = Paths.get(path).normalize();
             String fileName = filePath.getFileName().toString();
+            this.uploadName = fileName;
             long fileSize = Files.size(filePath);
             if (fileSize == 0) {
                 out.println("[不可傳輸空檔案]");
                 return;
             }
-            uploadTotalSize = fileSize;
+            this.uploadTotalSize = fileSize;
             out.println("[傳輸檔案名稱] " + fileName);
 
-            FileInputStream FIS = new FileInputStream(path);
-            BufferedInputStream BIS = new BufferedInputStream(FIS, 65536);
+            this.FIS = new FileInputStream(path);
+            this.BIS = new BufferedInputStream(this.FIS, 65536);
 
             Packager sPkg = new Packager(1024);
             sPkg.bind(State.FILE, 3);
@@ -60,7 +65,7 @@ public class File implements ParserEvent {
             sPkg.setHead(State.FILE, (int) fileSize);
             byte[] fileBytes = new byte[sPkg.ctx.capacity() - Head.INFO.LENG];
 
-            int fileByteLeng = BIS.read(fileBytes);
+            int fileByteLeng = this.BIS.read(fileBytes);
 
             do {
                 if (fileBytes.length > fileByteLeng) {
@@ -71,34 +76,31 @@ public class File implements ParserEvent {
                 sPkg.write(fileBytes);
                 sPkg.sendTo(socketChannel);
 
-                uploadSize += fileByteLeng;
-                out.println(uploadSize + " / " + uploadTotalSize);
+                this.uploadSize += fileByteLeng;
+                out.println(this.uploadSize + " / " + this.uploadTotalSize);
 
                 fileBytes = new byte[sPkg.ctx.capacity()];
-            } while ((fileByteLeng = BIS.read(fileBytes)) != -1);
+            } while ((fileByteLeng = this.BIS.read(fileBytes)) != -1);
 
-            BIS.close();
+            this.BIS.close();
 
             out.println("[傳輸檔案完成]");
         } catch (Exception err) {
             err.printStackTrace();
             // out.println("[讀檔或傳輸階段失敗]");
         } finally{
-            uploadSize = 0;
-            uploadTotalSize = 0;
+            this.resetUpload();
         }
     }
 
     public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
         if (pkg.parserEvent == null) {
-            System.out.println("file method created");
-
             pkg.setProceeding(true);
 
             File receiver = this;
+            receiver.resetDownload();
             pkg.fetch(socketChannel, receiver);
         } else {
-            System.out.println("file method ...");
             pkg.fetch(socketChannel);
         }
         return;
@@ -121,7 +123,7 @@ public class File implements ParserEvent {
             out.println("[建檔階段]");
             try {
                 this.FOS = new FileOutputStream("./files/" + this.downloadName);
-                this.BOS = new BufferedOutputStream(FOS, 65536);
+                this.BOS = new BufferedOutputStream(this.FOS, 65536);
             } catch (Exception err) {
                 err.printStackTrace();
             }
@@ -152,10 +154,24 @@ public class File implements ParserEvent {
             } catch (Exception err) {
                 err.printStackTrace();
             } finally {
-                this.downloadName = null;
-                this.downloadSize = 0;
-                this.downloadTotalSize = 0;
+                this.resetDownload();
             }
         }
+    }
+
+    public void resetDownload(){
+        this.BOS = null;
+        this.FOS = null;
+        this.downloadName = null;
+        this.downloadSize = 0;
+        this.downloadTotalSize = 0;
+    }
+
+    public void resetUpload(){
+        this.BIS = null;
+        this.FIS = null;
+        this.uploadName = null;
+        this.uploadSize = 0;
+        this.uploadTotalSize = 0;
     }
 }

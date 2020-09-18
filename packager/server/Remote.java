@@ -38,7 +38,7 @@ public class Remote implements ParserEvent, KeyEvent {
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
         if (pkg.parserEvent == null) {
             pkg.setProceeding(true);
-            
+
             Remote receiver = new Remote(socketChannel, targetKey, key);
             pkg.fetch(socketChannel, receiver);
         } else {
@@ -77,7 +77,7 @@ public class Remote implements ParserEvent, KeyEvent {
 
         Remote sender = this;
         int emitCount = this.key.emitOther(this.keyName, this.socketChannel, sender);
-        out.println("[" + this.remoteAddressString + "/傳輸控制訊號] " + keyboardState + " >> " + this.keyboardCode);
+        out.printf("[%s/%s/傳控制鍵] %x >> %d\n", this.remoteAddressString, this.keyName, this.keyboardState, this.keyboardCode);
         out.println("[發送對象數] " + emitCount);
     }
 
