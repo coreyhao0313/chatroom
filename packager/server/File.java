@@ -48,7 +48,6 @@ public class File implements ParserEvent, KeyEvent {
         } else {
             pkg.fetch(socketChannel);
         }
-        // out.println("[發送對象數] " + emitCount);
     }
 
     @Override
@@ -92,12 +91,6 @@ public class File implements ParserEvent, KeyEvent {
             err.printStackTrace();
         }
     }
-
-    // @Override
-    // public void get(Parser self) {
-    // debug.packager.Parser p = new debug.packager.Parser(self);
-    // p.log();
-    // }
 
     @Override
     public void get(Parser self) {
