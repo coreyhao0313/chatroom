@@ -5,64 +5,89 @@ import java.nio.channels.SocketChannel;
 import static java.lang.System.out;
 
 import base.State;
+import base.packager.ParserEvent;
+import base.packager.server.KeyEvent;
 import packager.Parser;
 import packager.Packager;
 
-public class Remote {
+public class Remote implements ParserEvent, KeyEvent {
+    public Integer keyboardCode;
+    public byte keyboardState;
+    public String remoteAddressString;
+    public Key key;
+    public String keyName;
+    public Packager cPkg;
+    public int originPosition;
+    public int originLimit;
+    public SocketChannel socketChannel;
+
+    public Remote(SocketChannel socketChannel, Integer targetKey, Key key) {
+        try {
+            this.key = key;
+            this.keyName = this.key.getName(targetKey);
+            this.socketChannel = socketChannel;
+            this.remoteAddressString = socketChannel.getRemoteAddress().toString();
+
+            this.cPkg = new Packager(1024);
+            this.cPkg.bind(State.REMOTE, 2);
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+    }
+
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
-
-        if (pkg.evtSelf == null) {
-            Packager cPkg = new Packager(1024);
-            cPkg.bind(State.REMOTE, 2);
-
+        if (pkg.parserEvent == null) {
             pkg.setProceeding(true);
-            Parser evt = new Parser() {
-                public Integer keyboardCode;
-                public byte keyboardState;
-                public String keyName = key.getName(targetKey);
-                public String userFromInfo = socketChannel.getRemoteAddress().toString();
-
-                @Override
-                public void breakPoint(Parser self) {
-                    byte[] stuffBytes = self.getBytes();
-                    try {
-                        cPkg.write(stuffBytes);
-
-                        if (this.keyboardCode == null) {
-                            cPkg.breakPoint();
-                            String stuffString = new String(stuffBytes);
-                            this.keyboardCode = Integer.parseInt(stuffString);
-                        } else if (this.keyboardState == 0) {
-                            this.keyboardState = stuffBytes[0];
-                        }
-                    } catch(Exception err){
-                        err.printStackTrace();
-                    }
-                }
-
-                public void finish(Parser self) {
-                    cPkg.ctx.flip();
-                    int originPosition = cPkg.ctx.position();
-                    int originLimit = cPkg.ctx.limit();
-                    int emitCount = key.emitOther(this.keyName, socketChannel, new Key() {
-                        @Override
-                        public void emitRun(SocketChannel targetSocketChannel) {
-                            try {
-                                cPkg.ctx.position(originPosition);
-                                cPkg.ctx.limit(originLimit);
-                                targetSocketChannel.write(cPkg.ctx);
-                            } catch (Exception err) {
-                                err.printStackTrace();
-                            }
-                        }
-                    });
-                    out.println("[" + this.userFromInfo + "/傳輸控制訊號] " + keyboardState + " >> " + this.keyboardCode);
-                    out.println("[發送對象數] " + emitCount);
-                }
-            };
-            pkg.fetch(socketChannel, evt);
+            
+            Remote receiver = new Remote(socketChannel, targetKey, key);
+            pkg.fetch(socketChannel, receiver);
         } else {
             pkg.fetch(socketChannel);
+        }
+    }
+
+    @Override
+    public void get(Parser self) {
+        ;
+    }
+
+    @Override
+    public void breakPoint(Parser self) {
+        byte[] stuffBytes = self.getBytes();
+        try {
+            this.cPkg.write(stuffBytes);
+
+            if (this.keyboardCode == null) {
+                this.cPkg.breakPoint();
+                String stuffString = new String(stuffBytes);
+                this.keyboardCode = Integer.parseInt(stuffString);
+            } else if (this.keyboardState == 0) {
+                this.keyboardState = stuffBytes[0];
+            }
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+    }
+
+    public void finish(Parser self) {
+        this.cPkg.ctx.flip();
+
+        this.originPosition = this.cPkg.ctx.position();
+        this.originLimit = this.cPkg.ctx.limit();
+
+        Remote sender = this;
+        int emitCount = this.key.emitOther(this.keyName, this.socketChannel, sender);
+        out.println("[" + this.remoteAddressString + "/傳輸控制訊號] " + keyboardState + " >> " + this.keyboardCode);
+        out.println("[發送對象數] " + emitCount);
+    }
+
+    public void everyOther(SocketChannel targetSocketChannel) {
+        try {
+            this.cPkg.ctx.position(this.originPosition);
+            this.cPkg.ctx.limit(this.originLimit);
+            targetSocketChannel.write(this.cPkg.ctx);
+        } catch (Exception err) {
+            err.printStackTrace();
         }
     }
 }

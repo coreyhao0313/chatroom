@@ -20,8 +20,8 @@ public class Keyboard extends KeyAdapter {
         this.text.setEditable(false);
         this.text.addKeyListener(this);
 
-        frame.add(text);
-        frame.setVisible(true);
+        this.frame.add(text);
+        this.frame.setVisible(true);
     }
 
     public void keyPressed(KeyEvent evt) {

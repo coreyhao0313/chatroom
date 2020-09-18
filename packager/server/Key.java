@@ -1,6 +1,5 @@
 package packager.server;
 
-import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Map;
@@ -9,8 +8,10 @@ import java.util.Iterator;
 
 import static java.lang.System.out;
 
+import base.packager.server.KeyEvent;
+
 import packager.Parser;
-public class Key {
+public class Key implements KeyEvent{
     public Map<Integer, String> keys;
     public Map<String, ArrayList<SocketChannel>> groups;
 
@@ -66,11 +67,11 @@ public class Key {
         return this.groups.get(keyName);
     }
 
-    public void emitRun(SocketChannel socketChannel){
+    public void everyOther(SocketChannel targetSocketChannel){
         ;
     }
 
-    public int emitOther(String keyName, SocketChannel socketChannel, Key actKey){ // actKey for targer emitRun
+    public int emitOther(String keyName, SocketChannel socketChannel, KeyEvent keyEvent){
         ArrayList<SocketChannel> socketChannels = this.getMembers(keyName);
         Iterator<SocketChannel> socketChannelsIterator = socketChannels.iterator();
         while (socketChannelsIterator.hasNext()) {
@@ -78,7 +79,7 @@ public class Key {
             if (targetSocketChannel == socketChannel) {
                 continue;
             }
-            actKey.emitRun(targetSocketChannel);
+            keyEvent.everyOther(targetSocketChannel);
         }
 
         return socketChannels.size() - 1;

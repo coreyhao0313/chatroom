@@ -14,21 +14,22 @@ import static java.lang.System.out;
 
 import base.State;
 import base.packager.Head;
+import base.packager.ParserEvent;
 import packager.Parser;
 import packager.Packager;
 
-public class File {
+public class File implements ParserEvent {
     public FileOutputStream FOS;
     public BufferedOutputStream BOS;
-
-    public long uploadTotalSize = 0;
-    public long uploadSize = 0;
 
     public String downloadName;
     public long downloadTotalSize;
     public long downloadSize;
 
-    public void send(String path, SocketChannel socketChannel) {
+    public static void send(String path, SocketChannel socketChannel) {
+        long uploadTotalSize = 0;
+        long uploadSize = 0;
+
         try {
             Path filePath = Paths.get(path).normalize();
             String fileName = filePath.getFileName().toString();
@@ -37,7 +38,7 @@ public class File {
                 out.println("[不可傳輸空檔案]");
                 return;
             }
-            this.uploadTotalSize = fileSize;
+            uploadTotalSize = fileSize;
             out.println("[傳輸檔案名稱] " + fileName);
 
             FileInputStream FIS = new FileInputStream(path);
@@ -70,108 +71,91 @@ public class File {
                 sPkg.write(fileBytes);
                 sPkg.sendTo(socketChannel);
 
-                this.uploadSize += fileByteLeng;
-                out.println(this.uploadSize + " / " + this.uploadTotalSize);
+                uploadSize += fileByteLeng;
+                out.println(uploadSize + " / " + uploadTotalSize);
 
                 fileBytes = new byte[sPkg.ctx.capacity()];
             } while ((fileByteLeng = BIS.read(fileBytes)) != -1);
 
             BIS.close();
-            this.uploadSize = 0;
-            this.uploadTotalSize = 0;
 
             out.println("[傳輸檔案完成]");
         } catch (Exception err) {
             err.printStackTrace();
             // out.println("[讀檔或傳輸階段失敗]");
+        } finally{
+            uploadSize = 0;
+            uploadTotalSize = 0;
         }
     }
 
     public void handle(Parser pkg, SocketChannel socketChannel) throws Exception {
-
-        if (pkg.evtSelf == null) {
+        if (pkg.parserEvent == null) {
             System.out.println("file method created");
 
             pkg.setProceeding(true);
 
-            Parser evt = new Parser() {
-                @Override
-                public void breakPoint(Parser self) {
-                    if (downloadName != null && downloadTotalSize != 0) {
-                        return;
-                    }
-                    byte[] stuffBytes = self.getBytes();
-
-                    if (downloadName == null) {
-                        downloadName = new String(stuffBytes);
-                        out.println("[接收檔案名稱] " + downloadName);
-                    } else if (downloadTotalSize == 0) {
-                        
-                        downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
-                        out.println("[接收檔案大小] " + downloadTotalSize);
-                        out.println("[建檔階段]");
-                        try {
-                            FOS = new FileOutputStream("./files/" + downloadName);
-                            BOS = new BufferedOutputStream(FOS, 65536);
-                        } catch (Exception err) {
-                            err.printStackTrace();
-                        }
-                    }
-                }
-
-                @Override
-                public void get(Parser self) {
-                    if (BOS != null) {
-                        byte[] fileBytes = self.getBytes();
-
-                        try {
-                            BOS.write(fileBytes);
-                            downloadSize += fileBytes.length;
-                            out.println(downloadSize + " / " + downloadTotalSize);
-                        } catch (Exception err) {
-                            err.printStackTrace();
-                        }
-                    }
-                }
-
-                @Override
-                public void finish(Parser self) {
-                    if (BOS != null) {
-                        try {
-                            out.println("[下載完成]");
-                            BOS.close();
-                        } catch (Exception err) {
-                            err.printStackTrace();
-                        } finally {
-                            downloadName = null;
-                            downloadSize = 0;
-                            downloadTotalSize = 0;
-                        }
-                    }
-                }
-
-                // @Override
-                // public void get(Parser self) {
-                //     // byte[] stuffBytes = self.getBytes();
-
-                //     // System.out.println();
-                //     // System.out.println();
-                //     // for (byte t : stuffBytes) {
-                //     //     System.out.print(t + " ");
-                //     // }
-                //     // System.out.println();
-                //     // System.out.println();
-
-                //     // debug.packager.Parser p = new debug.packager.Parser(self);
-                //     // p.log();
-                // }
-            };
-
-            pkg.fetch(socketChannel, evt);
+            File receiver = this;
+            pkg.fetch(socketChannel, receiver);
         } else {
             System.out.println("file method ...");
             pkg.fetch(socketChannel);
         }
         return;
+    }
+
+    @Override
+    public void breakPoint(Parser self) {
+        if (this.downloadName != null && this.downloadTotalSize != 0) {
+            return;
+        }
+        byte[] stuffBytes = self.getBytes();
+
+        if (this.downloadName == null) {
+            this.downloadName = new String(stuffBytes);
+            out.println("[接收檔案名稱] " + this.downloadName);
+        } else if (this.downloadTotalSize == 0) {
+            
+            this.downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
+            out.println("[接收檔案大小] " + this.downloadTotalSize);
+            out.println("[建檔階段]");
+            try {
+                this.FOS = new FileOutputStream("./files/" + this.downloadName);
+                this.BOS = new BufferedOutputStream(FOS, 65536);
+            } catch (Exception err) {
+                err.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void get(Parser self) {
+        if (this.BOS != null) {
+            byte[] fileBytes = self.getBytes();
+
+            try {
+                this.BOS.write(fileBytes);
+                this.downloadSize += fileBytes.length;
+                out.println(this.downloadSize + " / " + this.downloadTotalSize);
+            } catch (Exception err) {
+                err.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void finish(Parser self) {
+        if (this.BOS != null) {
+            try {
+                this.BOS.close();
+                out.println("[下載完成]");
+            } catch (Exception err) {
+                err.printStackTrace();
+            } finally {
+                this.downloadName = null;
+                this.downloadSize = 0;
+                this.downloadTotalSize = 0;
+            }
+        }
     }
 }

@@ -4,8 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 
 import base.packager.Head;
+import base.packager.ParserEvent;
 
-public class Parser {
+public class Parser implements ParserEvent {
     public ByteBuffer ctx;
     private ByteBuffer headCtx;
     private boolean bindingSkipped = true;
@@ -23,7 +24,7 @@ public class Parser {
     public int limit = 0;
     public byte type = 0;
     public int leng = 0;
-    public Parser evtSelf = null;
+    public ParserEvent parserEvent = null;
 
     public Parser(int capacity) {
         if (capacity < Head.INFO.LENG) {
@@ -104,24 +105,24 @@ public class Parser {
         return false;
     }
 
-    public void fetch(SocketChannel socketChannel, Parser evtSelf) {
-        this.evtSelf = evtSelf;
+    public void fetch(SocketChannel socketChannel, ParserEvent parserEvent) {
+        this.parserEvent = parserEvent;
         this.fetch(socketChannel);
     }
 
     public void fetch(SocketChannel socketChannel) {
-        Parser evtSelf = this.evtSelf == null ? this : this.evtSelf;
+        ParserEvent parserEvent = this.parserEvent == null ? this : this.parserEvent;
         try {
             while (true) {
                 if (this.readableLeng != 0) {
-                    if (this.reachHandler(evtSelf)) {
+                    if (this.reachHandler(parserEvent)) {
                         if (this.proceeding && this.tryNext(socketChannel)) {
                             this.breakPointCount--;
                             continue;
                         }
     
                         if (this.isFinish()) {
-                            evtSelf.finish(this);
+                            parserEvent.finish(this);
                             break;
                         }
                     }
@@ -139,7 +140,7 @@ public class Parser {
         }
     }
 
-    private boolean reachHandler(Parser evtSelf) {
+    private boolean reachHandler(ParserEvent parserEvent) {
         int blockLimit = this.nextPosition > this.readableLeng ? this.readableLeng : this.nextPosition;
         if(blockLimit == 0){
             return true;
@@ -158,12 +159,12 @@ public class Parser {
         }
 
         this.ctx.limit(blockLimit);
-        evtSelf.get(this);
+        parserEvent.get(this);
 
         if (isBreakPoint) {
             this.ctx.position(originPosition);
             this.ctx.limit(blockLimit);
-            evtSelf.breakPoint(this);
+            parserEvent.breakPoint(this);
         }
 
         this.ctx.position(originPosition);

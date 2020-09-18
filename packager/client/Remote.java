@@ -6,12 +6,15 @@ import java.awt.Robot;
 import static java.lang.System.out;
 
 import base.State;
+import base.packager.ParserEvent;
 import client.Keyboard;
 import packager.Parser;
 import packager.Packager;
 
-public class Remote {
+public class Remote implements ParserEvent{
     public Robot robot;
+    public Integer keyboardCode;
+    public byte keyboardState;
 
     public void setOutputController(){
         try {
@@ -65,41 +68,51 @@ public class Remote {
             out.println("[未被允許操控之傳輸]");
             return;
         }
-        if(pkg.evtSelf == null){
+        if(pkg.parserEvent == null){
             pkg.setProceeding(true);
-            Parser evt = new Parser(){
-                public Integer keyboardCode;
-                public byte keyboardState;
 
-                public void breakPoint(Parser self){
-                    if(this.keyboardCode == null){
-                        byte[] stuffBytes = self.getBytes();
-                        String stuffString = new String(stuffBytes);
-                        this.keyboardCode = Integer.parseInt(stuffString);
-                    } else if(this.keyboardState == 0){
-                        this.keyboardState = self.ctx.get();
-                    }
-                }
-                public void finish(Parser self){
-                    if (this.keyboardCode == 0 || this.keyboardCode == null) {
-                        return;
-                    }
-                    switch (this.keyboardState) {
-                        case 1:
-                            robot.keyPress(this.keyboardCode);
-                            out.println("keyPress: " + this.keyboardCode);
-                            break;
-            
-                        case 2:
-                            robot.keyRelease(this.keyboardCode);
-                            out.println("keyRelease: " + this.keyboardCode);
-                            break;
-                    }
-                }
-            };
-            pkg.fetch(socketChannel, evt);
+            Remote receiver = this;
+            pkg.fetch(socketChannel, receiver);
         }else{
             pkg.fetch(socketChannel);
+        }
+    }
+
+    @Override
+    public void get(Parser self) {
+        ;
+    }
+
+    @Override
+    public void breakPoint(Parser self){
+        if(this.keyboardCode == null){
+            byte[] stuffBytes = self.getBytes();
+            String stuffString = new String(stuffBytes);
+            this.keyboardCode = Integer.parseInt(stuffString);
+        } else if(this.keyboardState == 0){
+            this.keyboardState = self.ctx.get();
+        }
+    }
+    
+    @Override
+    public void finish(Parser self){
+        if (this.keyboardCode == 0 || this.keyboardCode == null) {
+            return;
+        }
+        try {
+            switch (this.keyboardState) {
+                case 1:
+                    this.robot.keyPress(this.keyboardCode);
+                    out.println("keyPress: " + this.keyboardCode);
+                    break;
+    
+                case 2:
+                    this.robot.keyRelease(this.keyboardCode);
+                    out.println("keyRelease: " + this.keyboardCode);
+                    break;
+            }
+        } catch (Exception err) {
+            out.println("不支援的 keycode");
         }
     }
 }

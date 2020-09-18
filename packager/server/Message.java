@@ -5,47 +5,61 @@ import java.nio.channels.SocketChannel;
 import static java.lang.System.out;
 
 import base.State;
+import base.packager.server.KeyEvent;
 import packager.Parser;
 import packager.Packager;
 
-public class Message {
+public class Message implements KeyEvent {
+    public Packager cPkg;
+    public int originPosition;
+    public int originLimit;
+
+    public Message(byte[] remoteAddressBytes, byte[] messageBytes) {
+        try {
+            this.cPkg = new Packager(2048);
+            this.cPkg.bind(State.MESSAGE, 2);
+
+            this.cPkg.write(remoteAddressBytes);
+            this.cPkg.breakPoint();
+            this.cPkg.write(messageBytes);
+
+            this.cPkg.ctx.flip();
+
+            this.originPosition = cPkg.ctx.position();
+            this.originLimit = cPkg.ctx.limit();
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
+    }
+
     public static void handle(Parser pkg, SocketChannel socketChannel, Integer targetKey, Key key) throws Exception {
         String keyName = key.getName(targetKey);
 
         pkg.fetch(socketChannel);
-        String userFromInfo = socketChannel.getRemoteAddress().toString();
+        String remoteAddressString = socketChannel.getRemoteAddress().toString();
         byte[] messageBytes = pkg.getBytes();
-
-        out.println("[" + userFromInfo + "/" + keyName + "/傳輸訊息] ");
-        out.println(new String(messageBytes));
-
-        Packager cPkg = new Packager(2048);
-        cPkg.bind(State.MESSAGE, 2);
-        cPkg.write(userFromInfo.getBytes());
-        cPkg.breakPoint();
-        cPkg.write(messageBytes);
 
         if (messageBytes.length == 0) {
             return;
         }
-        cPkg.ctx.flip();
-        int originPosition = cPkg.ctx.position();
-        int originLimit = cPkg.ctx.limit();
 
-        int emitCount = key.emitOther(keyName, socketChannel, new Key() {
-            @Override
-            public void emitRun(SocketChannel targetSocketChannel) {
-                try {
-                    cPkg.ctx.position(originPosition);
-                    cPkg.ctx.limit(originLimit);
-                    targetSocketChannel.write(cPkg.ctx);
-                } catch (Exception err) {
-                    err.printStackTrace();
-                }
-            }
-        });
+        out.println("[" + remoteAddressString + "/" + keyName + "/傳輸訊息] ");
+        out.println(new String(messageBytes));
 
-        cPkg.ctx.clear();
+        Message sender = new Message(remoteAddressString.getBytes(), messageBytes);
+        int emitCount = key.emitOther(keyName, socketChannel, sender);
+
         out.println("[發送對象數] " + emitCount);
+    }
+
+    @Override
+    public void everyOther(SocketChannel targetSocketChannel) {
+        try {
+            this.cPkg.ctx.position(this.originPosition);
+            this.cPkg.ctx.limit(this.originLimit);
+            targetSocketChannel.write(this.cPkg.ctx);
+        } catch (Exception err) {
+            err.printStackTrace();
+        }
     }
 }

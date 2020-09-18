@@ -126,7 +126,7 @@ public class Chat implements CsocketClient {
                         if (key.value == null) {
                             key.send(socketChannel, inputText);
                         } else if (matcherFile.matches()) {
-                            file.send(matcherFile.group(1), socketChannel);
+                            File.send(matcherFile.group(1), socketChannel);
                         } else if (matcherRemote.matches()) {
                             if (matcherRemote.group(1) != null) {
                                 remote.setOutputController();
