@@ -112,7 +112,6 @@ public class Chat implements CsocketClient {
         return new Runnable() {
             @Override
             public void run() {
-
                 while (true) {
                     try {
                         String inputText = BR.readLine();

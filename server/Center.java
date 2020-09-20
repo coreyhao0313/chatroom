@@ -4,7 +4,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.Selector;
 import java.nio.channels.SelectionKey;
-// import java.nio.ByteBuffer;
 import java.net.InetSocketAddress;
 import java.util.Set;
 import java.util.Iterator;
@@ -62,10 +61,9 @@ public class Center implements CsocketServer {
                     Integer targetKey = selectionKey.hashCode();
                     if (selectionKey.isAcceptable()) {
                         this.setConnectHandler(selectionKey);
-                    } else if (selectionKey.isReadable() && !lockingKeys.contains(targetKey)) {
+                    } else if (selectionKey.isReadable() && !this.lockingKeys.contains(targetKey)) {
                         SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
-                        // new Thread(this.handler(socketChannel, targetKey)).start();
-                        this.handler(socketChannel, targetKey).run();
+                        this.handler(socketChannel, targetKey);
                     }
                 }
             } catch (Exception err) {
@@ -79,9 +77,9 @@ public class Center implements CsocketServer {
             ServerSocketChannel ServerSocketChennal = (ServerSocketChannel) selectionKey.channel();
             SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
 
-            // if (socketChannel.isConnectionPending()) {
-            // socketChannel.finishConnect(); // padding on connection
-            // }
+            if (socketChannel.isConnectionPending()) {
+                socketChannel.finishConnect();
+            }
             socketChannel.configureBlocking(false);
             socketChannel.register(selector, selectionKey.OP_READ);
             out.println("[建立連線] " + socketChannel.getRemoteAddress());
@@ -90,27 +88,22 @@ public class Center implements CsocketServer {
         }
     }
 
-    public Runnable handler(SocketChannel socketChannel, Integer targetKey) {
+    public void handler(SocketChannel socketChannel, Integer targetKey) {
         this.lockingKeys.add(targetKey);
 
-        return new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    if (dispatch(socketChannel, targetKey) == -1) {
-                        out.println("[連線中斷] " + socketChannel.getRemoteAddress());
-                        socketChannel.close();
+        try {
+            if (dispatch(socketChannel, targetKey) == -1) {
+                out.println("[連線中斷] " + socketChannel.getRemoteAddress());
+                socketChannel.close();
 
-                        key.remove(targetKey, socketChannel);
-                    }
-                } catch (Exception err) {
-                    err.printStackTrace();
-                    throw new Error("處理階段失敗，可能包含傳輸異常");
-                } finally {
-                    lockingKeys.remove(targetKey);
-                }
+                this.key.remove(targetKey, socketChannel);
             }
-        };
+        } catch (Exception err) {
+            err.printStackTrace();
+            throw new Error("處理階段失敗，可能包含傳輸異常");
+        } finally {
+            this.lockingKeys.remove(targetKey);
+        }
     }
 
     public int dispatch(SocketChannel socketChannel, Integer targetKey) throws Exception {
