@@ -120,6 +120,7 @@ public class File implements ParserEvent, KeyEvent {
         out.println("[" + this.remoteAddressString + "/" + this.fileName + " 傳輸作業完成]");
     }
 
+    @Override
     public void everyOther(SocketChannel targetSocketChannel) {
         try {
             this.cPkg.ctx.position(this.originPosition);

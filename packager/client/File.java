@@ -63,15 +63,16 @@ public class File implements ParserEvent {
             sPkg.proceed();
 
             sPkg.setHead(State.FILE, (int) fileSize);
-            byte[] fileBytes = new byte[sPkg.ctx.capacity() - Head.INFO.LENG];
+            int capacity = sPkg.ctx.capacity();
+            byte[] fileBytes = new byte[capacity - Head.INFO.LENG];
 
             int fileByteLeng = this.BIS.read(fileBytes);
 
             do {
                 if (fileBytes.length > fileByteLeng) {
-                    byte[] fileByteFinalLeng = new byte[fileByteLeng];
-                    System.arraycopy(fileBytes, 0, fileByteFinalLeng, 0, fileByteLeng);
-                    fileBytes = fileByteFinalLeng;
+                    byte[] fileFinalBytes = new byte[fileByteLeng];
+                    System.arraycopy(fileBytes, 0, fileFinalBytes, 0, fileByteLeng);
+                    fileBytes = fileFinalBytes;
                 }
                 sPkg.write(fileBytes);
                 sPkg.sendTo(socketChannel);
@@ -79,7 +80,7 @@ public class File implements ParserEvent {
                 this.uploadSize += fileByteLeng;
                 out.println(this.uploadSize + " / " + this.uploadTotalSize);
 
-                fileBytes = new byte[sPkg.ctx.capacity()];
+                fileBytes = new byte[capacity];
             } while ((fileByteLeng = this.BIS.read(fileBytes)) != -1);
 
             this.BIS.close();

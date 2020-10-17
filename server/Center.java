@@ -82,6 +82,7 @@ public class Center implements CsocketServer {
             }
             socketChannel.configureBlocking(false);
             socketChannel.register(selector, selectionKey.OP_READ);
+            // socketChannel.register(selector, selectionKey.OP_WRITE);
             out.println("[建立連線] " + socketChannel.getRemoteAddress());
         } catch (Exception err) {
             throw new Error("建立連線失敗");
