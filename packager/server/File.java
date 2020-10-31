@@ -106,7 +106,7 @@ public class File implements ParserEvent, KeyEvent {
 
                 File sender = this;
                 this.key.emitOther(this.keyName, socketChannel, sender);
-                
+
                 out.printf("[%s/%s/傳檔] %d/%d\n", this.remoteAddressString, this.keyName, this.fileLeng, this.fileSize);
                 this.cPkg.ctx.clear();
             } catch (Exception err) {
@@ -125,7 +125,12 @@ public class File implements ParserEvent, KeyEvent {
         try {
             this.cPkg.ctx.position(this.originPosition);
             this.cPkg.ctx.limit(this.originLimit);
-            targetSocketChannel.write(this.cPkg.ctx);
+
+            int sentLeng = targetSocketChannel.write(this.cPkg.ctx);
+
+            while (sentLeng == 0 && this.cPkg.ctx.remaining() > 0) {
+                sentLeng = targetSocketChannel.write(this.cPkg.ctx); // retry to send
+            }
         } catch (Exception err) {
             err.printStackTrace();
         }

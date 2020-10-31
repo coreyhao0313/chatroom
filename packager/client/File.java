@@ -89,7 +89,7 @@ public class File implements ParserEvent {
         } catch (Exception err) {
             err.printStackTrace();
             // out.println("[讀檔或傳輸階段失敗]");
-        } finally{
+        } finally {
             this.resetUpload();
         }
     }
@@ -118,7 +118,7 @@ public class File implements ParserEvent {
             this.downloadName = new String(stuffBytes);
             out.println("[接收檔案名稱] " + this.downloadName);
         } else if (this.downloadTotalSize == 0) {
-            
+
             this.downloadTotalSize = ByteBuffer.wrap(stuffBytes).getLong();
             out.println("[接收檔案大小] " + this.downloadTotalSize);
             out.println("[建檔階段]");
@@ -160,7 +160,7 @@ public class File implements ParserEvent {
         }
     }
 
-    public void resetDownload(){
+    public void resetDownload() {
         this.BOS = null;
         this.FOS = null;
         this.downloadName = null;
@@ -168,7 +168,7 @@ public class File implements ParserEvent {
         this.downloadTotalSize = 0;
     }
 
-    public void resetUpload(){
+    public void resetUpload() {
         this.BIS = null;
         this.FIS = null;
         this.uploadName = null;

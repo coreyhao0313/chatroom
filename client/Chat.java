@@ -39,8 +39,6 @@ public class Chat implements CsocketClient {
             this.socketChannel.configureBlocking(false);
             this.socketChannel.connect(new InetSocketAddress(address, port));
             this.socketChannel.register(this.selector, SelectionKey.OP_CONNECT);
-            this.socketChannel.socket().setSendBufferSize(52428800); // 52428800
-            this.socketChannel.socket().setReceiveBufferSize(52428800);
         } catch (Exception err) {
             out.println("初始化連線建立失敗");
         }
@@ -150,7 +148,7 @@ public class Chat implements CsocketClient {
         if (pkg == null) {
             this.myPackage = new Parser(2048);
             pkg = this.myPackage;
-            if(!pkg.fetchHead(socketChannel)){
+            if (!pkg.fetchHead(socketChannel)) {
                 return pkg.readableLeng;
             }
         }

@@ -14,7 +14,7 @@ public class Message implements ParserEvent {
     public String message;
 
     @Override
-    public void get(Parser parser){
+    public void get(Parser parser) {
         ;
     }
 
@@ -51,7 +51,7 @@ public class Message implements ParserEvent {
     public static void handle(Parser pkg, SocketChannel socketChannel) {
         if (pkg.parserEvent == null) {
             pkg.setProceeding(true);
-            
+
             Message receiver = new Message();
             pkg.fetch(socketChannel, receiver);
         } else {

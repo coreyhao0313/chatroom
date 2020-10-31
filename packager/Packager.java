@@ -50,7 +50,7 @@ public class Packager {
         this.wroteHead = true;
     }
 
-    private void putDefaultHead (){
+    private void putDefaultHead() {
         this.prefixBytes[2] = Head.HEAD_NULL.CODE;
         this.ctx.put(this.prefixBytes);
         this.ctx.put(this.typeBytes);
@@ -70,26 +70,31 @@ public class Packager {
 
     public void sendTo(SocketChannel socketChannel) throws Exception {
         this.ctx.flip();
-        socketChannel.write(this.ctx);
+        int sentLeng = socketChannel.write(this.ctx);
         // debug.packager.Packager pdebug = new debug.packager.Packager(this);
         // pdebug.log();
+
+        while(sentLeng == 0 && this.ctx.remaining() > 0){
+            sentLeng = socketChannel.write(this.ctx); // retry to send
+        }
+
         this.ctx.clear();
     }
 
-    public void proceed(){
+    public void proceed() {
         this.wroteHead = false;
     }
-    
-    public void breakPoint(){
+
+    public void breakPoint() {
         this.putDefaultHead();
         this.proceed();
     }
 
-    public void bind(State state, int count){
+    public void bind(State state, int count) {
         this.setHead(Head.HEAD_3, state);
 
         byte[] bindingInfoBytes = new byte[Head.BINDING.LENG];
-        bindingInfoBytes[0] = (byte)count;
+        bindingInfoBytes[0] = (byte) count;
         this.ctx.put(bindingInfoBytes);
 
         this.setHead(state);

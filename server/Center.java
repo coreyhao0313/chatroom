@@ -1,5 +1,6 @@
 package server;
 
+import java.net.Socket;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.Selector;
@@ -38,7 +39,6 @@ public class Center implements CsocketServer {
             this.serverSocketChannel.configureBlocking(false);
             this.serverSocketChannel.bind(new InetSocketAddress(port));
             this.serverSocketChannel.register(this.selector, SelectionKey.OP_ACCEPT);
-            this.serverSocketChannel.socket().setReceiveBufferSize(52428800);
         } catch (Exception err) {
             throw new Error("初始化連線建立失敗");
         }
@@ -75,7 +75,8 @@ public class Center implements CsocketServer {
     public void setConnectHandler(SelectionKey selectionKey) {
         try {
             ServerSocketChannel ServerSocketChennal = (ServerSocketChannel) selectionKey.channel();
-            SocketChannel socketChannel = ServerSocketChennal.accept().socket().getChannel();
+            Socket socket = ServerSocketChennal.accept().socket();
+            SocketChannel socketChannel = socket.getChannel();
 
             if (socketChannel.isConnectionPending()) {
                 socketChannel.finishConnect();
@@ -100,7 +101,6 @@ public class Center implements CsocketServer {
                 this.key.remove(targetKey, socketChannel);
             }
         } catch (Exception err) {
-            err.printStackTrace();
             throw new Error("處理階段失敗，可能包含傳輸異常");
         } finally {
             this.lockingKeys.remove(targetKey);

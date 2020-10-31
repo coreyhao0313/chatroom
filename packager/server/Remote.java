@@ -69,6 +69,7 @@ public class Remote implements ParserEvent, KeyEvent {
         }
     }
 
+    @Override
     public void finish(Parser self) {
         this.cPkg.ctx.flip();
 
@@ -77,15 +78,22 @@ public class Remote implements ParserEvent, KeyEvent {
 
         Remote sender = this;
         int emitCount = this.key.emitOther(this.keyName, this.socketChannel, sender);
-        out.printf("[%s/%s/傳控制鍵] %x >> %d\n", this.remoteAddressString, this.keyName, this.keyboardState, this.keyboardCode);
+        out.printf("[%s/%s/傳控制鍵] %x >> %d\n", this.remoteAddressString, this.keyName, this.keyboardState,
+                this.keyboardCode);
         out.println("[發送對象數] " + emitCount);
     }
 
+    @Override
     public void everyOther(SocketChannel targetSocketChannel) {
         try {
             this.cPkg.ctx.position(this.originPosition);
             this.cPkg.ctx.limit(this.originLimit);
-            targetSocketChannel.write(this.cPkg.ctx);
+
+            int sentLeng = targetSocketChannel.write(this.cPkg.ctx);
+
+            while (sentLeng == 0 && this.cPkg.ctx.remaining() > 0) {
+                sentLeng = targetSocketChannel.write(this.cPkg.ctx); // retry to send
+            }
         } catch (Exception err) {
             err.printStackTrace();
         }
