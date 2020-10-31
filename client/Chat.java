@@ -114,7 +114,7 @@ public class Chat implements CsocketClient {
                     try {
                         String inputText = BR.readLine();
 
-                        Pattern patternFile = Pattern.compile("^/file\\s{1}(.+)");
+                        Pattern patternFile = Pattern.compile("^/file\\s{1}[\"\']?([^\"\']+)[\"\']?\\s*");
                         Matcher matcherFile = patternFile.matcher(inputText);
 
                         Pattern patternRemote = Pattern.compile("^/remote\\s?(me)?");
