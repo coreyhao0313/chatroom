@@ -64,5 +64,5 @@ java -Dfile.encoding=UTF-8 Online -c 127.0.0.1 3000
 ```
 /file <File Path>
 ```
-為聊天室中所有成員將接收檔案
+為聊天室中所有成員將接收檔案\
 ＊必須存在 files 目錄
