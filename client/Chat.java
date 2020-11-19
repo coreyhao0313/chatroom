@@ -134,7 +134,6 @@ public class Chat implements CsocketClient {
                             Message.send(socketChannel, inputText);
                         }
                     } catch (Exception err) {
-                        err.printStackTrace();
                         throw new Error("輸入階段發生例外");
                     }
                 }
